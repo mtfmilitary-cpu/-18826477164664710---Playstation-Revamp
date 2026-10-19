@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain, dialog, globalShortcut } from "electron";
+import { app, BrowserWindow, shell, ipcMain, dialog, globalShortcut, screen } from "electron";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
@@ -10,6 +10,7 @@ import { diagnostic, diagnosticLogPath } from "../server/diagnostics.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let mainWindow;
+let quickMenuWindow;
 
 const projectRoot = path.resolve(__dirname, '..');
 const startupFiles = [
@@ -68,6 +69,7 @@ async function createWindow() {
   mainWindow.on("closed", () => {
     diagnostic("ELECTRON-WINDOW-0003", "Console window closed.", null, "INFO");
     mainWindow = null;
+    if (quickMenuWindow && !quickMenuWindow.isDestroyed()) quickMenuWindow.close();
   });
   mainWindow.on("focus", () => {
     diagnostic("ELECTRON-WINDOW-0004", "Console window gained focus.", null, "INFO");
@@ -106,6 +108,59 @@ async function createWindow() {
   });
 }
 
+async function moveCursorToQuickMenu() {
+  if (process.platform !== "win32") return;
+  const bounds = screen.getPrimaryDisplay().bounds;
+  const x = Math.round(bounds.x + 120);
+  const y = Math.round(bounds.y + 100);
+  const script = 'Add-Type -TypeDefinition \'[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y);\' -Name ConsoleCursor -Namespace Native; [Native.ConsoleCursor]::SetCursorPos(' + x + ', ' + y + ') | Out-Null';
+  try {
+    await execFileAsync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { windowsHide: true, timeout: 3000 });
+  } catch (error) {
+    diagnostic("ELECTRON-OVERLAY-0004", "Native mouse positioning was unavailable.", null, "WARN", {
+      code: /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || "")) ? String(error.code) : "CURSOR_POSITION_FAILED",
+    });
+  }
+}
+
+async function createQuickMenuWindow() {
+  const display = screen.getPrimaryDisplay();
+  quickMenuWindow = new BrowserWindow({
+    x: display.bounds.x, y: display.bounds.y,
+    width: display.bounds.width, height: display.bounds.height,
+    frame: false, transparent: true, backgroundColor: "#00000000",
+    alwaysOnTop: true, focusable: true, skipTaskbar: true,
+    resizable: false, movable: false, hasShadow: false, show: false,
+    title: "Console Quick Menu",
+    webPreferences: { preload: path.join(__dirname, "preload.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true },
+  });
+  quickMenuWindow.setAlwaysOnTop(true, "screen-saver");
+  quickMenuWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  quickMenuWindow.on("closed", () => { quickMenuWindow = null; });
+  quickMenuWindow.webContents.on("did-fail-load", (_event, errorCode, _description, validatedURL, isMainFrame) => {
+    if (errorCode === -3) return;
+    diagnostic("ELECTRON-OVERLAY-0002", "Quick Menu overlay failed to load.", null, "ERROR", { errorCode, isMainFrame: Boolean(isMainFrame), localPage: isTrustedLocalUrl(validatedURL) });
+  });
+  const baseUrl = process.env.ELECTRON_RENDERER_URL || "http://127.0.0.1:3000";
+  await quickMenuWindow.loadURL(new URL("/overlay", baseUrl).toString());
+  quickMenuWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  quickMenuWindow.webContents.on("will-navigate", (event, url) => {
+    try { const parsed = new URL(url); if (!isTrustedLocalUrl(url) || parsed.pathname !== "/overlay") event.preventDefault(); }
+    catch { event.preventDefault(); }
+  });
+  diagnostic("ELECTRON-OVERLAY-0001", "Windows-wide Quick Menu overlay created.", null, "INFO", { displayWidth: display.bounds.width, displayHeight: display.bounds.height });
+}
+
+function toggleQuickMenuOverlay() {
+  if (!quickMenuWindow || quickMenuWindow.isDestroyed()) {
+    diagnostic("ELECTRON-HOTKEY-0002", "Quick Menu overlay was unavailable.", null, "WARN"); return;
+  }
+  if (quickMenuWindow.isVisible()) { quickMenuWindow.webContents.send("console:quick-menu-toggle"); return; }
+  quickMenuWindow.show(); quickMenuWindow.focus();
+  setTimeout(() => { moveCursorToQuickMenu(); }, 75);
+  quickMenuWindow.webContents.send("console:quick-menu-toggle");
+}
+
 app.whenReady().then(async () => {
   try {
     await startServer(3000, "127.0.0.1");
@@ -115,21 +170,16 @@ app.whenReady().then(async () => {
   }
   try {
     await createWindow();
+    await createQuickMenuWindow();
   } catch (error) {
-    diagnostic("ELECTRON-BOOT-0002", "Electron could not load the console window.", error, "FATAL");
+    diagnostic("ELECTRON-BOOT-0002", "Electron could not load the console window or Quick Menu overlay.", error, "FATAL");
     throw error;
   }
   diagnostic("DIAG-0000", `Diagnostic logging is active. Log file: ${diagnosticLogPath}`, null, "INFO");
   // Scroll Lock is a global console hotkey, including while a Steam game is foregrounded.
   const registered = globalShortcut.register("ScrollLock", () => {
-    if (!mainWindow || mainWindow.isDestroyed()) {
-      diagnostic("ELECTRON-HOTKEY-0002", "Quick-menu hotkey pressed while the window was unavailable.", null, "WARN");
-      return;
-    }
     diagnostic("ELECTRON-HOTKEY-0001", "Quick-menu hotkey activated.", null, "INFO");
-    mainWindow.show();
-    mainWindow.focus();
-    mainWindow.webContents.send("console:quick-menu-toggle");
+    toggleQuickMenuOverlay();
   });
   diagnostic("ELECTRON-HOTKEY-0003", registered ? "Quick-menu hotkey registered." : "Quick-menu hotkey registration failed.", null, registered ? "INFO" : "WARN");
 
@@ -180,6 +230,23 @@ ipcMain.handle("console:renderer-diagnostic", (event, entry) => {
     detail: clean(entry.detail, 600),
     componentStack: clean(entry.componentStack, 900),
   });
+  return true;
+});
+
+ipcMain.handle("console:quick-menu-hide", (event) => {
+  try {
+    if (!isTrustedLocalUrl(event.senderFrame?.url || "") || new URL(event.senderFrame.url).pathname !== "/overlay") return false;
+  } catch { return false; }
+  if (quickMenuWindow && !quickMenuWindow.isDestroyed()) quickMenuWindow.hide();
+  return true;
+});
+
+ipcMain.handle("console:open-main-route", (event, route) => {
+  if (!isTrustedLocalUrl(event.senderFrame?.url || "")) return false;
+  const allowedRoutes = new Set(["/home", "/settings", "/friends", "/party", "/library", "/profile", "/store"]);
+  if (!allowedRoutes.has(route) || !mainWindow || mainWindow.isDestroyed()) return false;
+  mainWindow.show(); mainWindow.focus(); mainWindow.webContents.send("console:navigate", route);
+  if (quickMenuWindow && !quickMenuWindow.isDestroyed()) quickMenuWindow.hide();
   return true;
 });
 
