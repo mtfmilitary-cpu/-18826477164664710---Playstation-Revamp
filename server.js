@@ -321,7 +321,7 @@ app.get('/api/v1/profile/me', async (_req, res) => {
     const player = summaryPayload?.response?.players?.[0] || {};
     const ownedGames = gamesPayload?.response?.games || [];
     const recentGames = recentPayload?.response?.games || [];
-    const friends = friendsPayload?.friendslist?.friends || [];
+    const friends = Array.isArray(friendsPayload?.friendslist?.friends) ? friendsPayload.friendslist.friends : [];
     let steamFriends = [];
     if (friends.length > 0) {
       try {
@@ -329,7 +329,8 @@ app.get('/api/v1/profile/me', async (_req, res) => {
         const friendProfiles = [];
         for (let index = 0; index < friendIds.length; index += 100) {
           const payload = await steamWebApi('ISteamUser', 'GetPlayerSummaries', { steamids: friendIds.slice(index, index + 100).join(',') });
-          friendProfiles.push(...(payload.response?.players || []));
+          const players = payload?.response?.players;
+          if (Array.isArray(players)) friendProfiles.push(...players);
         }
         steamFriends = friendProfiles.map((friend) => ({
           steamId: friend.steamid,
