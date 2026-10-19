@@ -1,8 +1,8 @@
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
-const logDirectory = path.join(os.homedir(), '.gisc-console', 'logs');
+const projectRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+const logDirectory = path.join(projectRoot, 'logs');
 const logFile = path.join(logDirectory, 'console-diagnostics.log');
 
 function safeError(error) {
