@@ -6,3 +6,6 @@
 .party-server-chat .peer-chat-form{margin-top:0}
 .party-server-chat .peer-chat-form input{min-width:0;background:#101d30;border:1px solid #293e59;border-radius:9px;color:#fff;padding:10px 12px;font:inherit;font-size:12px}
 @media(max-width:900px){.party-layout{grid-template-columns:minmax(0,1fr)}.party-room{min-height:420px}}
+
+/* PS4-style Party interface: clean horizontal system panels and vivid blue focus. */
+.party-page{background:linear-gradient(180deg,#101d30 0%,#07101d 55%,#050a12 100%)}.party-page .social-heading{padding-bottom:18px;border-bottom:1px solid rgba(157,190,228,.16)}.party-page .social-eyebrow{color:#8cc5ff;letter-spacing:1.5px}.party-page .party-sidebar,.party-page .party-room{border-radius:3px;background:rgba(14,27,44,.86);border-color:rgba(132,169,209,.2)}.party-page .party-list-item{border-radius:3px}.party-page .party-list-item.selected,.party-page .party-list-item:focus-visible{background:rgba(36,104,174,.3);border-color:#68b4ff;outline:1px solid rgba(104,180,255,.55)}.party-page .social-primary,.party-page .social-secondary{border-radius:3px}.party-page input:focus-visible{outline:2px solid #8cc7ff;outline-offset:2px}.party-page .party-room-header,.party-page .party-members,.party-page .party-invite-form{border-color:rgba(157,190,228,.16)}
