@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Monitor, Palette, Power, RotateCcw, Moon, Sun, AlertTriangle } from "lucide-react";
+import { Monitor, Palette, Power, RotateCcw, Moon, AlertTriangle } from "lucide-react";
 import "./ConsoleSettings.css";
 
 const DEFAULTS = { accent: "#2877dc", font: "Inter", backdrop: "blue" };
