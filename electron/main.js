@@ -333,6 +333,12 @@ ipcMain.handle("console:open-bluetooth-settings", async (event) => {
   return true;
 });
 
+ipcMain.handle("console:toggle-quick-menu", (event) => {
+  if (!isTrustedLocalUrl(event.senderFrame?.url || "")) return false;
+  toggleQuickMenuOverlay();
+  return true;
+});
+
 ipcMain.handle("console:quick-menu-hide", (event) => {
   try {
     if (!isTrustedLocalUrl(event.senderFrame?.url || "") || new URL(event.senderFrame.url).pathname !== "/overlay") return false;
