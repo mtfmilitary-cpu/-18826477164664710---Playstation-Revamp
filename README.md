@@ -388,3 +388,33 @@ This is an experimental web development showcase demonstrating advanced UI/UX im
 **Made with ❤️ and lots of ☕**
 
 </div>
+
+---
+
+## Project #18826477164664710 — Electron + Steam Console
+
+This branch adds a desktop-app foundation while preserving the existing React/Vite interface.
+
+### Run in development
+
+```bash
+npm install
+npm run electron:dev
+```
+
+### Build and run the desktop version
+
+```bash
+npm install
+npm run desktop
+```
+
+### Steam integration in this branch
+
+- The **Library** screen reads installed Steam games from local `appmanifest_*.acf` files and detected Steam library folders.
+- **Play** launches a detected installed game through its Steam App ID.
+- The **Store** screen uses Steam's public Store search/details endpoints where available and links out to the official Steam page for checkout.
+- No Steam password, payment information, or private profile credentials are requested.
+- Steam Store endpoints are best-effort and can be throttled or changed; price/details may be unavailable temporarily.
+
+Electron is configured with context isolation, Node integration disabled, a sandboxed preload, and a loopback-only backend. This project is a fan-made interface and is not affiliated with Sony or Valve.
