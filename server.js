@@ -220,8 +220,8 @@ app.get('/api/v1/profile/me', async (_req, res) => {
         steamUrl: `https://store.steampowered.com/app/${game.appid}/`,
       })),
       fullStatsAvailable: Boolean(summaryPayload || gamesPayload || recentPayload || levelPayload || friendsPayload),
-      statsUnavailableReason: results.every((result) => result.status === 'rejected')
-        ? 'Steam could not return profile statistics. Check your API key and Steam profile privacy settings.'
+      statsUnavailableReason: results.some((result) => result.status === 'rejected')
+        ? 'Some Steam profile fields could not be returned. Check the profile privacy settings and whether the Web API key is valid.'
         : null,
       // Steam has no single API endpoint for an account-wide achievements total.
       achievementsUnlocked: null,
