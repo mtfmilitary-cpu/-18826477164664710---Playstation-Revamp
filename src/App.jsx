@@ -11,7 +11,6 @@ import FriendsPage from "./Components/FriendsPage";
 import PartyChatPage from "./Components/PartyChatPage";
 import ControllerDashboard from "./Components/Anikator/ControllerDashboard";
 import ControllerInterface from "./Components/Anikator/ControllerInterface";
-import HardwareStore from "./Components/Anikator/HardwareStore";
 import VirtualCursor from "./Components/Anikator/VirtualCursor";
 import PSMediaUI from "./Components/MediaUI";
 import Profile from "./Components/Profile";
