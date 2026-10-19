@@ -15,7 +15,6 @@ export default function PartyChatPage() {
   const [partyName, setPartyName] = useState("");
   const [parties, setParties] = useState([]);
   const [party, setParty] = useState(null);
-  const [message, setMessage] = useState("");
   const [invite, setInvite] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -67,13 +66,6 @@ export default function PartyChatPage() {
     finally { setBusy(false); }
   }
 
-  async function sendMessage(event) {
-    event.preventDefault();
-    if (!message.trim() || !party) return;
-    const text = message.trim(); setMessage("");
-    try { const data = await request(`${API}/${encodeURIComponent(party.id)}/messages`, { method: "POST", body: JSON.stringify({ username, text }) }); setParty(data.party); }
-    catch (err) { setError(err.message); setMessage(text); }
-  }
 
   async function sendInvite(event) {
     event.preventDefault();
