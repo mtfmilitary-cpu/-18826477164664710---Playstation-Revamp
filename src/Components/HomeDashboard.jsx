@@ -396,7 +396,7 @@ const HomeDashboard = () => {
                                 <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                                     {/* Play Now / View in Library button */}
                                     <button
-                                        onClick={() => openGameDetails(game)}
+                                        onClick={launchSelectedGame}
                                         style={{
                                             display: "flex", alignItems: "center", gap: "8px",
                                             background: "rgba(255,255,255,0.9)",
@@ -414,7 +414,7 @@ const HomeDashboard = () => {
                                         onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.9)"; e.currentTarget.style.transform = "scale(1)"; }}
                                     >
                                         <CrossIcon size={14} color="#000" />
-                                        {"Game Details"}
+                                        {"Play"}
                                     </button>
 
                                     {/* More options button */}
