@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { SearchIcon, Bell, Settings } from "lucide-react";
+import { SearchIcon, Settings } from "lucide-react";
 import { userProfile } from "../data/mockData.js";
 import { QRCodeSVG } from "qrcode.react";
 import { useDualSenseWS } from "./Anikator/useDualSenseWS";
@@ -33,8 +33,8 @@ const GlobalNavbar = () => {
         { label: "Media", path: "/media" },
         { label: "Store", path: "/store" },
         { label: "Showcase", path: "/showcase" },
-        { label: "Accessories", path: "/accessories" },
-        { label: "Subscriptions", path: "/subscriptions" },
+        { label: "Friends", path: "/friends" },
+        { label: "Party Chat", path: "/party" },
         { label: "Profile", path: "/profile" },
         { label: "Settings", path: "/settings" },
     ];
@@ -52,13 +52,13 @@ const GlobalNavbar = () => {
         }}>
             {/* Logo */}
             <Link to="/home" style={{
-                marginRight: "40px", display: "flex", alignItems: "center",
+                marginRight: "40px", display: "flex", alignItems: "center", gap: "10px",
                 transition: "opacity 0.3s ease"
             }}
                 onMouseEnter={e => e.currentTarget.style.opacity = 0.8}
                 onMouseLeave={e => e.currentTarget.style.opacity = 1}
             >
-                <img src="https://upload.wikimedia.org/wikipedia/commons/4/4e/Playstation_logo_colour.svg" alt="PS Logo" style={{ height: "36px", filter: "brightness(0) invert(1)" }} />
+                <img src="https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg" alt="Steam logo" style={{ height: "36px", width: "36px", filter: "brightness(0) invert(1)" }} /><span style={{color:"#fff",fontSize:"20px",fontWeight:700,letterSpacing:"-0.5px"}}>Steam</span>
             </Link>
 
             {/* Navigation Links */}
