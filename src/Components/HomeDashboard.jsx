@@ -157,13 +157,6 @@ const HomeDashboard = () => {
         }
     }, [action, focusZone, navIdx, displayGames.length]);
 
-    // Auto-rotate only when real Steam games are available.
-    useEffect(() => {
-        if (displayGames.length < 2) return;
-        const t = setInterval(() => setActiveIdx(i => (i + 1) % displayGames.length), 8000);
-        return () => clearInterval(t);
-    }, [displayGames.length]);
-
     async function openGameDetails(selectedGame) {
         setDetailsOpen(true);
         setResolvedGame(null);
@@ -476,9 +469,9 @@ const HomeDashboard = () => {
             </div>
         </div>
             {detailsOpen && (
-                <div role="dialog" aria-modal="true" aria-label="Game details" onClick={() => setDetailsOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 200000, display: "grid", placeItems: "center", padding: 20, background: "rgba(0,0,0,.78)", backdropFilter: "blur(14px)" }}>
-                    <section onClick={(event) => event.stopPropagation()} style={{ width: "min(860px, 100%)", maxHeight: "90vh", overflow: "auto", borderRadius: 18, padding: 24, color: "#fff", background: "#101721", border: "1px solid rgba(255,255,255,.16)", boxShadow: "0 24px 90px rgba(0,0,0,.5)" }}>
-                        <button onClick={() => setDetailsOpen(false)} style={{ background: "transparent", border: "1px solid rgba(255,255,255,.18)", borderRadius: 8, color: "#fff", padding: "8px 12px", cursor: "pointer" }}>← Back to Games</button>
+                <div aria-label="Selected game details" style={{ position: "fixed", right: 28, top: 94, zIndex: 200000, width: "min(480px, calc(100vw - 36px))", maxHeight: "calc(100vh - 120px)", overflow: "auto", borderRadius: 10, padding: 20, color: "#fff", background: "rgba(9,15,25,.94)", backdropFilter: "blur(22px)", border: "1px solid rgba(255,255,255,.2)", boxShadow: "0 18px 55px rgba(0,0,0,.45)" }}>
+                    <section>
+                        <button onClick={() => setDetailsOpen(false)} style={{ background: "transparent", border: "1px solid rgba(255,255,255,.18)", borderRadius: 4, color: "#fff", padding: "7px 11px", cursor: "pointer" }}>Back to Games</button>
                         {detailsBusy ? <p style={{ color: "rgba(255,255,255,.65)", padding: 24 }}>Looking up the real Steam listing…</p> : (
                             <>
                                 <img src={steamDetails?.cover || resolvedGame?.cover || resolvedGame?.poster || game.poster} alt="" style={{ width: "100%", maxHeight: 280, objectFit: "cover", borderRadius: 12, marginTop: 16, background: "#1a2230" }} />
@@ -495,7 +488,7 @@ const HomeDashboard = () => {
                             </>
                         )}
                     </section>
-                </div>
+                </aside>
             )}
         </>
     );
