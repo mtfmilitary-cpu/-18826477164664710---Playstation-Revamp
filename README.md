@@ -418,3 +418,18 @@ npm run desktop
 - Steam Store endpoints are best-effort and can be throttled or changed; price/details may be unavailable temporarily.
 
 Electron is configured with context isolation, Node integration disabled, a sandboxed preload, and a loopback-only backend. This project is a fan-made interface and is not affiliated with Sony or Valve.
+
+
+## Peer-to-peer party voice and chat
+
+The desktop party page includes an experimental WebRTC mesh-call panel:
+- Microphone audio is sent peer-to-peer using WebRTC media tracks.
+- Party text messages use WebRTC data channels when peers are connected.
+- The Node server's `/party-ws` WebSocket endpoint relays only room membership and WebRTC offer/answer/ICE signaling; it does not relay voice audio or P2P chat messages.
+- STUN is configured for connection discovery. Some routers and mobile networks require a TURN relay, which is not configured by default.
+
+### Current development limits
+
+The Electron app starts its signaling server on `127.0.0.1:3000` for local development. That means other people's computers cannot connect to this signaling endpoint over the internet yet. For real remote parties, deploy the Node signaling backend to a reachable HTTPS/WSS host, configure authentication and party access control, and provide a TURN service for networks where direct peer connections fail. Do not expose the unauthenticated development server directly to the public internet.
+
+This is an experimental mesh design: each participant connects directly to every other participant, so bandwidth and CPU usage grow with party size. It is best suited to small parties until a larger-scale architecture is added. Browser microphone access requires a secure context (Electron localhost or HTTPS) and user permission.
