@@ -3,6 +3,7 @@ import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { randomUUID } from 'crypto';
 import { scanInstalledGames, getInstalledGames, launchInstalledGame } from './server/steamLibrary.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -17,6 +18,89 @@ app.use(express.json({ limit: '64kb' }));
 app.use('/api/v1', (req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
+});
+
+
+const partyRooms = new Map();
+const cleanLabel = (value, fallback = "") => String(value || fallback).trim().slice(0, 60);
+const partySummary = (room) => ({
+  id: room.id, name: room.name, host: room.host,
+  members: [...room.members], invites: [...room.invites],
+  messages: room.messages.map((message) => ({ ...message })),
+  createdAt: room.createdAt,
+});
+
+// Party rooms are shared by clients connected to this running backend.
+// This is a local prototype: rooms reset when the Node process restarts.
+app.get('/api/v1/party', (_req, res) => {
+  res.json({ parties: [...partyRooms.values()].map((room) => ({
+    id: room.id, name: room.name, host: room.host, members: [...room.members], createdAt: room.createdAt,
+  })) });
+});
+
+app.post('/api/v1/party', (req, res) => {
+  const username = cleanLabel(req.body?.username, 'GamerPro').slice(0, 32);
+  const name = cleanLabel(req.body?.name, `${username}'s Party`) || `${username}'s Party`;
+  const id = randomUUID();
+  const room = {
+    id, name, host: username, members: [username], invites: [],
+    messages: [{ id: randomUUID(), username: 'System', text: `${username} started the party.`, at: new Date().toISOString() }],
+    createdAt: new Date().toISOString(),
+  };
+  partyRooms.set(id, room);
+  res.status(201).json({ party: partySummary(room) });
+});
+
+app.get('/api/v1/party/:partyId', (req, res) => {
+  const room = partyRooms.get(req.params.partyId);
+  if (!room) return res.status(404).json({ error: 'That party no longer exists.' });
+  res.json({ party: partySummary(room) });
+});
+
+app.post('/api/v1/party/:partyId/join', (req, res) => {
+  const room = partyRooms.get(req.params.partyId);
+  if (!room) return res.status(404).json({ error: 'That party no longer exists.' });
+  const username = cleanLabel(req.body?.username, 'GamerPro').slice(0, 32);
+  if (!room.members.includes(username)) room.members.push(username);
+  room.invites = room.invites.filter((invite) => invite !== username);
+  room.messages.push({ id: randomUUID(), username: 'System', text: `${username} joined the party.`, at: new Date().toISOString() });
+  res.json({ party: partySummary(room) });
+});
+
+app.post('/api/v1/party/:partyId/invite', (req, res) => {
+  const room = partyRooms.get(req.params.partyId);
+  if (!room) return res.status(404).json({ error: 'That party no longer exists.' });
+  const username = cleanLabel(req.body?.username, 'GamerPro').slice(0, 32);
+  const friend = cleanLabel(req.body?.friend).slice(0, 32);
+  if (!friend) return res.status(400).json({ error: 'Enter a friend name to invite.' });
+  if (friend.toLowerCase() !== username.toLowerCase() && !room.members.includes(friend) && !room.invites.includes(friend)) {
+    room.invites.push(friend);
+    room.messages.push({ id: randomUUID(), username: 'System', text: `${username} invited ${friend}.`, at: new Date().toISOString() });
+  }
+  res.json({ party: partySummary(room) });
+});
+
+app.post('/api/v1/party/:partyId/messages', (req, res) => {
+  const room = partyRooms.get(req.params.partyId);
+  if (!room) return res.status(404).json({ error: 'That party no longer exists.' });
+  const username = cleanLabel(req.body?.username, 'GamerPro').slice(0, 32);
+  const message = String(req.body?.text || '').trim().slice(0, 1000);
+  if (!message) return res.status(400).json({ error: 'Message cannot be empty.' });
+  if (!room.members.includes(username)) return res.status(403).json({ error: 'Join this party before sending messages.' });
+  room.messages.push({ id: randomUUID(), username, text: message, at: new Date().toISOString() });
+  if (room.messages.length > 150) room.messages.splice(0, room.messages.length - 150);
+  res.json({ party: partySummary(room) });
+});
+
+app.post('/api/v1/party/:partyId/leave', (req, res) => {
+  const room = partyRooms.get(req.params.partyId);
+  if (!room) return res.json({ ok: true });
+  const username = cleanLabel(req.body?.username, 'GamerPro').slice(0, 32);
+  room.members = room.members.filter((member) => member !== username);
+  room.messages.push({ id: randomUUID(), username: 'System', text: `${username} left the party.`, at: new Date().toISOString() });
+  if (room.members.length === 0) partyRooms.delete(room.id);
+  else if (room.host === username) room.host = room.members[0];
+  res.json({ ok: true });
 });
 
 const storeCache = new Map();
