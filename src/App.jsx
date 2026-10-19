@@ -18,6 +18,7 @@ import Preloader from "./Components/Preloader";
 import SubscriptionsPage from "./Components/SubscriptionsPage";
 import SteamStorePage from "./Components/SteamStorePage";
 import SteamLibraryPage from "./Components/SteamLibraryPage";
+import ConsoleSettingsPage from "./Components/ConsoleSettingsPage";
 
 function App() {
   const [loading, setLoading] = useState(true);
@@ -38,6 +39,7 @@ function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/library" element={<SteamLibraryPage />} />
             <Route path="/subscriptions" element={<SubscriptionsPage />} />
+            <Route path="/settings" element={<ConsoleSettingsPage />} />
           </Route>
           {/* The phone controller UI doesn't need the Layout typically, it's a remote */}
           <Route path="/controller" element={<ControllerInterface />} />
