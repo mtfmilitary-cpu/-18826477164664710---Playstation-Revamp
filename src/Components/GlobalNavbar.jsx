@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { SearchIcon, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 
 const GlobalNavbar = () => {
     const location = useLocation();
@@ -80,7 +80,6 @@ const GlobalNavbar = () => {
 
             {/* Right side icons */}
             <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "24px" }}>
-                <SearchIcon size={20} style={{ color: "rgba(255,255,255,0.7)", cursor: "pointer", transition: "all 0.3s" }} />
                 <Link to="/settings" aria-label="Settings" title="Settings" style={{ display: "flex", color: currentPath === "/settings" ? "#fff" : "rgba(255,255,255,0.7)" }}><Settings size={20} /></Link>
 
                 {/* User Avatar */}
