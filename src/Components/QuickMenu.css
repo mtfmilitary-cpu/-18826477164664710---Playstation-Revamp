@@ -51,3 +51,8 @@
 .quick-menu-achievement small{font-size:10px;color:#aeb1b4;line-height:1.4;overflow-wrap:anywhere}
 .quick-menu-achievement i{width:7px;height:7px;border-radius:50%;background:#676c70;flex:0 0 auto}
 .quick-menu-achievement i.unlocked{background:#f0cc6b}
+
+.quick-menu-invite-form{display:flex;gap:6px;width:100%;min-width:0}
+.quick-menu-invite-form input{min-width:0;flex:1;width:100%;box-sizing:border-box;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.15);border-radius:6px;color:#fff;padding:8px;font:inherit;font-size:11px}
+.quick-menu-invite-form button{padding:7px 9px;background:rgba(255,255,255,.12);color:white;border:1px solid rgba(255,255,255,.15);border-radius:6px;cursor:pointer;font-size:11px}
+.quick-menu-invite-form button:disabled{opacity:.5;cursor:not-allowed}
