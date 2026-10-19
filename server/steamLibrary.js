@@ -83,12 +83,13 @@ export function scanInstalledGames() {
   const games = new Map();
   const roots = findSteamRoots();
   for (const root of roots) {
-    for (const library of readLibraryFolders(root)) {
+    const libraries = readLibraryFolders(root);
+    for (const library of libraries) {
       const appsDir = path.join(library, "steamapps");
       let entries = [];
       try {
         diagnostic("FILE-ACCESS-0003", "Listing Steam app manifests.", null, "INFO", {
-          file: "steamapps", libraryIndex: [...readLibraryFolders(root)].indexOf(library),
+          file: "steamapps", libraryIndex: libraries.indexOf(library),
         });
         entries = fs.readdirSync(appsDir);
       } catch (error) {
