@@ -6,7 +6,6 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
-import PSStoreUI from "./Components/StoreUI";
 import HomeDashboard from "./Components/HomeDashboard";
 import ControllerDashboard from "./Components/Anikator/ControllerDashboard";
 import ControllerInterface from "./Components/Anikator/ControllerInterface";
@@ -16,7 +15,6 @@ import PSMediaUI from "./Components/MediaUI";
 import Profile from "./Components/Profile";
 import Layout from "./Components/Layout";
 import Preloader from "./Components/Preloader";
-import GameLibrary from "./Components/GameLibrary";
 import SubscriptionsPage from "./Components/SubscriptionsPage";
 import SteamStorePage from "./Components/SteamStorePage";
 import SteamLibraryPage from "./Components/SteamLibraryPage";
