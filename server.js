@@ -544,6 +544,9 @@ app.get('/api/v1/store/search', async (req, res) => {
       steamUrl: `https://store.steampowered.com/app/${item.id}/`,
     })) });
   } catch (error) {
+    diagnostic('STEAM-STORE-0001', 'Steam Store search request failed.', null, 'WARN', {
+      code: /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || '')) ? String(error.code) : 'STORE_REQUEST_FAILED',
+    });
     res.status(502).json({ error: 'Steam Store search is temporarily unavailable. Please try again.' });
   }
 });
