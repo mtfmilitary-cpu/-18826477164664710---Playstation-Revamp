@@ -117,7 +117,7 @@ export default function Profile() {
               </div>
             </section>
 
-            {(!profile.connected || !profile.fullStatsAvailable) && (
+            {(!profile.connected || !profile.fullStatsAvailable || profile.statsUnavailableReason) && (
               <section style={{ ...panelStyle, padding: 20, marginBottom: 20 }}>
                 <h3 style={{ margin: "0 0 8px", fontSize: 18 }}>{profile.connected ? "Account found — full stats need API access" : "Connect your Steam account"}</h3>
                 <p style={{ margin: 0, color: "rgba(230,237,247,.68)", lineHeight: 1.65 }}>
