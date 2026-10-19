@@ -22,6 +22,7 @@ export default function ControllerNavigationProvider({ children }) {
     const [focusIndicatorEnabled, setFocusIndicatorEnabled] = useState(false);
     const isActiveRef = useRef(false);
     const actionTimestampRef = useRef(0);
+    const homeButtonRef = useRef({ pressedAt: 0, timer: null, longPressed: false });
 
     // ── Helpers ──────────────────────────────────────────────────────
 
@@ -173,7 +174,29 @@ export default function ControllerNavigationProvider({ children }) {
     // ── Controller action handling ──────────────────────────────────
 
     useEffect(() => {
-        if (!action || action === 'RELEASE') return;
+        const homeButton = homeButtonRef.current;
+        if (['HOME', 'PS_BUTTON', 'PS'].includes(action)) {
+            if (!homeButton.pressedAt) {
+                homeButton.pressedAt = Date.now();
+                homeButton.longPressed = false;
+                homeButton.timer = setTimeout(() => {
+                    homeButton.longPressed = true;
+                    window.consoleBridge?.toggleQuickMenu?.().catch(() => {});
+                }, 5000);
+            }
+            return;
+        }
+        if (action === 'RELEASE') {
+            if (homeButton.pressedAt) {
+                if (homeButton.timer) clearTimeout(homeButton.timer);
+                const shortPress = !homeButton.longPressed && Date.now() - homeButton.pressedAt < 5000;
+                homeButton.pressedAt = 0;
+                homeButton.timer = null;
+                if (shortPress) window.consoleBridge?.openMainRoute?.('/home').catch(() => {});
+            }
+            return;
+        }
+        if (!action) return;
 
         // On /showcase, let all buttons pass through to the 3D controller
         if (location.pathname === '/showcase') return;
