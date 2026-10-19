@@ -45,8 +45,8 @@ function findSteamRoots() {
       const output = execFileSync("reg.exe", [
         "query", "HKCU\\Software\\Valve\\Steam", "/v", "SteamPath"
       ], { encoding: "utf8", windowsHide: true });
-      const match = output.match(/SteamPath\\s+REG_SZ\\s+(.+)/i);
-      if (match?.[1]) roots.add(match[1].trim().replace(/\\//g, "\\\\"));
+      const match = output.match(/SteamPath\s+REG_SZ\s+(.+)/i);
+      if (match?.[1]) roots.add(match[1].trim().replace(/\//g, "\\"));
     } catch { /* Fall back to standard install paths below. */ }
     for (const candidate of [
       path.join(process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)", "Steam"),
