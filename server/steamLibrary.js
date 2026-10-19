@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -40,6 +40,14 @@ function findSteamRoots() {
   const roots = new Set();
   if (process.env.STEAM_PATH) roots.add(process.env.STEAM_PATH);
   if (isWindows) {
+    // Prefer Steam's own registry path so non-default install drives are found.
+    try {
+      const output = execFileSync("reg.exe", [
+        "query", "HKCU\\Software\\Valve\\Steam", "/v", "SteamPath"
+      ], { encoding: "utf8", windowsHide: true });
+      const match = output.match(/SteamPath\\s+REG_SZ\\s+(.+)/i);
+      if (match?.[1]) roots.add(match[1].trim().replace(/\\//g, "\\\\"));
+    } catch { /* Fall back to standard install paths below. */ }
     for (const candidate of [
       path.join(process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)", "Steam"),
       path.join(process.env.ProgramFiles || "C:\\Program Files", "Steam"),
