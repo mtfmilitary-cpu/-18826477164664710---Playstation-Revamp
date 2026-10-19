@@ -135,7 +135,6 @@ async function createQuickMenuWindow() {
     webPreferences: { preload: path.join(__dirname, "preload.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
   quickMenuWindow.setAlwaysOnTop(true, "screen-saver");
-  quickMenuWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   quickMenuWindow.on("closed", () => { quickMenuWindow = null; });
   quickMenuWindow.webContents.on("did-fail-load", (_event, errorCode, _description, validatedURL, isMainFrame) => {
     if (errorCode === -3) return;
