@@ -376,7 +376,7 @@ const HomeDashboard = () => {
     const [steamDetails, setSteamDetails] = useState(null);
     const [detailsBusy, setDetailsBusy] = useState(false);
     const [detailsMessage, setDetailsMessage] = useState("");
-    const navItems = ["Games", "Media", "Accessories", "Showcase", "Store"];
+    const navItems = ["Games", "Friends", "Store"];
 
     // Navigation logic for D-Pad — cycles through allGames
     useEffect(() => {
@@ -401,8 +401,7 @@ const HomeDashboard = () => {
                 setFocusZone("GAMES");
             } else if (action === "CROSS") {
                 const t = navItems[navIdx];
-                if (t === "Accessories") navigate("/accessories");
-                else if (t === "Showcase") navigate("/showcase");
+                if (t === "Friends") navigate("/friends");
                 else if (t === "Store") navigate("/store");
                 else setTab(t);
             }
