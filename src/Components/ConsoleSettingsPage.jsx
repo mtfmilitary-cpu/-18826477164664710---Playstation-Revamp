@@ -162,7 +162,7 @@ export default function ConsoleSettingsPage() {
           <div><strong>ViGEmBus driver</strong><p>{controllerStack?.vigemBusInstalled ? "Driver service detected (" + (controllerStack.vigemBusState || "state unknown") + ")." : "ViGEmBus was not detected. This check does not install or repair drivers."}</p></div>
           <span className={controllerStack?.vigemBusInstalled ? "console-controller-status connected" : "console-controller-status"}>{controllerStack?.vigemBusInstalled ? "Detected" : "Not detected"}</span>
         </div>
-        {(!controllerStack?.ds4WindowsInstalled || !controllerStack?.vigemBusInstalled) && (
+        {(controllerStack?.supported && (!controllerStack.ds4WindowsInstalled || !controllerStack.vigemBusInstalled)) && (
           <div className="console-controller-install">
             <div className="console-controller-install-copy"><ShieldCheck size={20}/><div><strong>Automatic controller setup</strong><p>Downloads the pinned classic DS4Windows and ViGEmBus releases, verifies their SHA-256 hashes, then asks Windows for administrator approval before installing the driver.</p></div></div>
             <button className="console-settings-button" onClick={installControllerStack} disabled={installingController}><Download size={16}/>{installingController ? "Installing controller support…" : "Install missing components"}</button>
