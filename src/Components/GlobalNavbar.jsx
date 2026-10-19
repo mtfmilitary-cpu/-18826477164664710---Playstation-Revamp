@@ -1,14 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { SearchIcon, Settings } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
-import { useDualSenseWS } from "./Anikator/useDualSenseWS";
 
 const GlobalNavbar = () => {
     const location = useLocation();
     const currentPath = location.pathname;
-    const { session } = useDualSenseWS();
-    const [showQR, setShowQR] = useState(false);
     const [steamProfile, setSteamProfile] = useState(null);
 
     useEffect(() => {
@@ -23,9 +19,7 @@ const GlobalNavbar = () => {
     const navItems = [
         { label: "Games", path: "/home" },
         { label: "Library", path: "/library" },
-        { label: "Media", path: "/media" },
         { label: "Store", path: "/store" },
-        { label: "Showcase", path: "/showcase" },
         { label: "Friends", path: "/friends" },
         { label: "Party Chat", path: "/party" },
         { label: "Profile", path: "/profile" },
@@ -86,39 +80,6 @@ const GlobalNavbar = () => {
 
             {/* Right side icons */}
             <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "24px" }}>
-                <button
-                    onClick={() => setShowQR(true)}
-                    style={{
-                        background: "rgba(255,255,255,0.1)",
-                        border: "1px solid rgba(255,255,255,0.2)",
-                        color: "white",
-                        padding: "10px 24px",
-                        borderRadius: "20px",
-                        cursor: "pointer",
-                        fontWeight: 600,
-                        fontSize: "18px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "10px",
-                        transition: "all 0.3s ease",
-                        boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
-                    }}
-                    onMouseEnter={e => {
-                        e.currentTarget.style.background = "rgba(255,255,255,0.2)";
-                        e.currentTarget.style.transform = "translateY(-1px)";
-                    }}
-                    onMouseLeave={e => {
-                        e.currentTarget.style.background = "rgba(255,255,255,0.1)";
-                        e.currentTarget.style.transform = "translateY(0)";
-                    }}
-                >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
-                        <line x1="12" y1="18" x2="12.01" y2="18"></line>
-                    </svg>
-                    Connect Phone
-                </button>
-
                 <SearchIcon size={20} style={{ color: "rgba(255,255,255,0.7)", cursor: "pointer", transition: "all 0.3s" }} />
                 <Link to="/settings" aria-label="Settings" title="Settings" style={{ display: "flex", color: currentPath === "/settings" ? "#fff" : "rgba(255,255,255,0.7)" }}><Settings size={20} /></Link>
 
@@ -140,68 +101,6 @@ const GlobalNavbar = () => {
                 </Link>
             </div>
 
-            {/* QR Code Modal */}
-            {showQR && (
-                <div
-                    style={{
-                        position: "fixed",
-                        top: 0, left: 0, right: 0, bottom: 0,
-                        backgroundColor: "rgba(0,0,0,0.8)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        backdropFilter: "blur(10px)",
-                        zIndex: 99999,
-                        cursor: "pointer"
-                    }}
-                    onClick={() => setShowQR(false)}
-                >
-                    <div
-                        style={{
-                            background: "#1a1f2e",
-                            padding: "32px",
-                            borderRadius: "24px",
-                            border: "1px solid rgba(255,255,255,0.1)",
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
-                            cursor: "auto"
-                        }}
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <h3 style={{ color: "white", fontSize: "24px", fontWeight: "bold", marginBottom: "24px" }}>Scan to Control</h3>
-                        <div style={{ background: "white", padding: "16px", borderRadius: "16px", marginBottom: "24px" }}>
-                            <QRCodeSVG
-                                value={`${(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                                    ? `http://${__NETWORK_IP__}:${window.location.port || '5173'}`
-                                    : window.location.origin}/controller?session=${session}`}
-                                size={220}
-                            />
-                        </div>
-                        <p style={{ color: "rgba(255,255,255,0.6)", marginBottom: "8px" }}>
-                            Session ID: <span style={{ color: "white", fontFamily: "monospace", letterSpacing: "2px" }}>{session}</span>
-                        </p>
-                        <button
-                            onClick={() => setShowQR(false)}
-                            style={{
-                                marginTop: "16px",
-                                padding: "8px 24px",
-                                background: "rgba(255,255,255,0.1)",
-                                border: "none",
-                                borderRadius: "20px",
-                                color: "white",
-                                cursor: "pointer",
-                                transition: "all 0.3s"
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"}
-                            onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
-                        >
-                            Close
-                        </button>
-                    </div>
-                </div>
-            )}
         </nav>
     );
 };
