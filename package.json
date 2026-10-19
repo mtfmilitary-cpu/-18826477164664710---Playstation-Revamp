@@ -8,7 +8,10 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "node server.js"
+    "start": "node server.js",
+    "electron": "electron .",
+    "electron:dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && cross-env ELECTRON_RENDERER_URL=http://127.0.0.1:5173 electron .\"",
+    "desktop": "npm run build && electron ."
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
@@ -37,6 +40,11 @@
     "globals": "^16.5.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.2.1",
-    "vite": "^7.3.1"
-  }
+    "vite": "^7.3.1",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^40.0.0",
+    "wait-on": "^8.0.4"
+  },
+  "main": "electron/main.js"
 }
