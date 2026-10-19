@@ -302,7 +302,7 @@ app.get('/api/v1/profile/achievements/all', async (_req, res) => {
     const gamesPayload = await steamWebApi('IPlayerService', 'GetOwnedGames', {
       steamid: account.steamId, include_appinfo: 1, include_played_free_games: 1,
     });
-    const games = (gamesPayload.response?.games || []).filter((game) => Number(game.playtime_forever || 0) > 0);
+    const games = gamesPayload.response?.games || [];
     const achievementGames = [];
     const unavailableGames = [];
     // Keep concurrency low to avoid flooding Steam's Web API.
