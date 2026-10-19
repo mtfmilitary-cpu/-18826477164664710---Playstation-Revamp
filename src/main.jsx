@@ -77,6 +77,37 @@ window.addEventListener('unhandledrejection', (event) => {
   })
 })
 
+function mediaFileName(target) {
+  try {
+    const source = target.currentSrc || target.src || ''
+    return new URL(source, window.location.href).pathname.split('/').filter(Boolean).pop() || 'unknown media'
+  } catch {
+    return 'unknown media'
+  }
+}
+
+document.addEventListener('play', (event) => {
+  const target = event.target
+  if (!(target instanceof HTMLMediaElement)) return
+  reportDiagnostic({
+    code: 'RENDERER-MEDIA-0001',
+    message: 'Audio or video playback started.',
+    name: String(target.tagName || 'MEDIA'),
+    detail: mediaFileName(target),
+  })
+}, true)
+
+document.addEventListener('ended', (event) => {
+  const target = event.target
+  if (!(target instanceof HTMLMediaElement)) return
+  reportDiagnostic({
+    code: 'RENDERER-MEDIA-0002',
+    message: 'Audio or video playback ended.',
+    name: String(target.tagName || 'MEDIA'),
+    detail: mediaFileName(target),
+  })
+}, true)
+
 const rootElement = document.getElementById('root')
 if (!rootElement) {
   reportDiagnostic({
