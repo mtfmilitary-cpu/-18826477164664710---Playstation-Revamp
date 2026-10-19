@@ -9,6 +9,26 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 
+// Load private project settings from the root .env file without exposing them to the renderer.
+// Existing process environment variables take precedence over values in .env.
+const envFilePath = path.join(path.dirname(fileURLToPath(import.meta.url)), '.env');
+try {
+  const envText = fs.readFileSync(envFilePath, 'utf8');
+  for (const line of envText.split(/\r?\n/)) {
+    const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (!match || Object.hasOwn(process.env, match[1])) continue;
+    let value = match[2];
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    } else {
+      value = value.replace(/\s+#.*$/, '').trim();
+    }
+    process.env[match[1]] = value;
+  }
+} catch (error) {
+  if (error.code !== 'ENOENT') console.warn('Could not read the project .env file:', error.message);
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
