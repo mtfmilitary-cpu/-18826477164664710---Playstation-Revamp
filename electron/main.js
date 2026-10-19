@@ -162,6 +162,7 @@ const rendererDiagnosticCodes = new Set([
   "RENDERER-API-0001",
   "RENDERER-MEDIA-0001",
   "RENDERER-MEDIA-0002",
+  "RENDERER-NAV-0001",
 ]);
 
 ipcMain.handle("console:renderer-diagnostic", (event, entry) => {
@@ -173,7 +174,7 @@ ipcMain.handle("console:renderer-diagnostic", (event, entry) => {
     .slice(0, max);
   const code = entry.code;
   const message = clean(entry.message, 240) || "Renderer reported an error.";
-  const level = ["RENDERER-BOOT-0003", "RENDERER-MEDIA-0001", "RENDERER-MEDIA-0002"].includes(code) ? "INFO" : "ERROR";
+  const level = ["RENDERER-BOOT-0003", "RENDERER-MEDIA-0001", "RENDERER-MEDIA-0002", "RENDERER-NAV-0001"].includes(code) ? "INFO" : "ERROR";
   diagnostic(code, message, null, level, {
     name: clean(entry.name, 80),
     detail: clean(entry.detail, 600),
