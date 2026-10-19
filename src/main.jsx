@@ -24,12 +24,13 @@ class ConsoleErrorBoundary extends Component {
     return { hasError: true }
   }
 
-  componentDidCatch(error) {
+  componentDidCatch(error, info) {
     reportDiagnostic({
       code: 'RENDERER-BOOT-0002',
       message: 'React caught an interface rendering error.',
       name: error?.name || 'Error',
       detail: error?.message || 'No error message was provided.',
+      componentStack: info?.componentStack || 'React did not provide a component stack.',
     })
   }
 
