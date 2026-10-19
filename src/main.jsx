@@ -65,7 +65,7 @@ window.addEventListener('error', (event) => {
     name: event.error?.name || 'Error',
     detail: event.error?.message || event.message || 'No error message was provided.',
   })
-})
+}, true)
 
 window.addEventListener('unhandledrejection', (event) => {
   const reason = event.reason
