@@ -64,7 +64,7 @@ export default function ConsoleSettingsPage() {
       return;
     }
     setInstallingController(true);
-    setControllerToast({ title: "Confirm controller setup", message: "A confirmation dialog will appear. If you approve, Windows will then show its administrator prompt.", kind: "info" });
+    setControllerToast({ title: "Confirm controller setup", message: "After you confirm, the app downloads and verifies the release files. Windows then asks for administrator approval before installing the driver.", kind: "info" });
     try {
       const result = await window.consoleBridge.installControllerStack();
       if (result?.cancelled) {
