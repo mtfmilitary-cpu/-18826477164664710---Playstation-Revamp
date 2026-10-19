@@ -69,6 +69,12 @@ async function createWindow() {
     diagnostic("ELECTRON-WINDOW-0003", "Console window closed.", null, "INFO");
     mainWindow = null;
   });
+  mainWindow.on("focus", () => {
+    diagnostic("ELECTRON-WINDOW-0004", "Console window gained focus.", null, "INFO");
+  });
+  mainWindow.on("blur", () => {
+    diagnostic("ELECTRON-WINDOW-0005", "Console window lost focus.", null, "INFO");
+  });
   mainWindow.webContents.on("did-fail-load", (_event, errorCode, _description, validatedURL, isMainFrame) => {
     if (errorCode === -3) return;
     diagnostic("ELECTRON-LOAD-0001", "A page or resource failed to load.", null, "ERROR", {
