@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld("consoleBridge", Object.freeze({
       message: String(entry.message || ""),
       name: String(entry.name || ""),
       detail: String(entry.detail || ""),
+      componentStack: String(entry.componentStack || ""),
     });
   },
   requestPowerAction: (action) => {
