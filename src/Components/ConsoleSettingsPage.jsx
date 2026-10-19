@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Monitor, Palette, Power, RotateCcw, Moon, AlertTriangle, Volume2, MousePointer2, Music2, Gamepad2, Bluetooth, Cable, RefreshCw } from "lucide-react";
+import { Monitor, Palette, Power, RotateCcw, Moon, AlertTriangle, Volume2, MousePointer2, Music2, Gamepad2, Bluetooth, Cable, RefreshCw, Download, ShieldCheck, CheckCircle2, X } from "lucide-react";
 import "./ConsoleSettings.css";
 
 const DEFAULTS = { accent: "#2877dc", font: "Inter", backdrop: "blue", soundsEnabled: true, soundVolume: 50, backgroundMusicEnabled: true };
@@ -12,9 +12,18 @@ export default function ConsoleSettingsPage() {
   const [powerMessage, setPowerMessage] = useState("");
   const [controllerInfo, setControllerInfo] = useState(null);
   const [controllerStack, setControllerStack] = useState(null);
+  const [controllerToast, setControllerToast] = useState(null);
+  const [installingController, setInstallingController] = useState(false);
 
   useEffect(() => {
     window.consoleBridge?.getControllerStackStatus?.().then(setControllerStack).catch(() => setControllerStack({ supported: false, error: "Could not check DS4Windows status." }));
+    const unsubscribeProgress = window.consoleBridge?.onControllerSetupProgress?.((progress) => {
+      setControllerToast({ title: progress.title || "Controller setup", message: progress.message || "", kind: progress.kind || "info" });
+      if (progress.stage === "complete") {
+        setInstallingController(false);
+        window.consoleBridge?.getControllerStackStatus?.().then(setControllerStack).catch(() => {});
+      } else if (progress.stage === "failed" || progress.stage === "cancelled") setInstallingController(false);
+    });
     const refreshController = () => {
       const pads = Array.from(navigator.getGamepads?.() || []).filter((pad) => pad?.connected);
       const pad = pads.find((candidate) => /dualshock|wireless controller|sony/i.test(candidate.id)) || pads[0] || null;
@@ -35,6 +44,7 @@ export default function ConsoleSettingsPage() {
       window.removeEventListener("gamepadconnected", refreshController);
       window.removeEventListener("gamepaddisconnected", refreshController);
       window.clearInterval(timer);
+      if (typeof unsubscribeProgress === "function") unsubscribeProgress();
     };
   }, []);
 
@@ -47,6 +57,25 @@ export default function ConsoleSettingsPage() {
   }, [settings]);
 
   function update(key, value) { setSettings((current) => ({ ...current, [key]: value })); }
+
+  async function installControllerStack() {
+    if (!window.consoleBridge?.installControllerStack) {
+      setControllerToast({ title: "Desktop app required", message: "Run this console with npm run desktop on Windows to install controller drivers.", kind: "error" });
+      return;
+    }
+    setInstallingController(true);
+    setControllerToast({ title: "Confirm controller setup", message: "A confirmation dialog will appear. If you approve, Windows will then show its administrator prompt.", kind: "info" });
+    try {
+      const result = await window.consoleBridge.installControllerStack();
+      if (result?.cancelled) {
+        setInstallingController(false);
+        setControllerToast({ title: "Installation cancelled", message: "No changes were made.", kind: "info" });
+      }
+    } catch (error) {
+      setInstallingController(false);
+      setControllerToast({ title: "Controller setup failed", message: error.message || "The controller setup did not complete.", kind: "error" });
+    }
+  }
 
   async function testSound(file) {
     if (!settings.soundsEnabled) { setPowerMessage("Enable console sounds first."); return; }
@@ -126,13 +155,20 @@ export default function ConsoleSettingsPage() {
         </div>
         {controllerInfo && <div className="console-settings-row"><div><strong>Input mapping</strong><p>{controllerInfo.mapping === "standard" ? "Standard gamepad mapping is available." : "Windows exposed a non-standard mapping; some button labels may differ."}</p></div><span>{controllerInfo.buttons} buttons · {controllerInfo.axes} axes</span></div>}
         <div className="console-settings-row">
-          <div><strong>DS4Windows</strong><p>{controllerStack?.supported === false ? (controllerStack.error || "Run the desktop app on Windows to check this.") : controllerStack?.ds4WindowsRunning ? "DS4Windows is running." : "DS4Windows was not detected as running."}</p></div>
-          <span className={controllerStack?.ds4WindowsRunning ? "console-controller-status connected" : "console-controller-status"}>{controllerStack?.ds4WindowsRunning ? "Running" : "Not running"}</span>
+          <div><strong>DS4Windows</strong><p>{controllerStack?.ds4WindowsInstalled ? (controllerStack.ds4WindowsRunning ? "DS4Windows is installed and running." : "DS4Windows is installed but not running.") : "DS4Windows classic setup was not detected as installed."}</p></div>
+          <span className={controllerStack?.ds4WindowsInstalled ? "console-controller-status connected" : "console-controller-status"}>{controllerStack?.ds4WindowsInstalled ? (controllerStack.ds4WindowsRunning ? "Running" : "Installed") : "Not installed"}</span>
         </div>
         <div className="console-settings-row">
           <div><strong>ViGEmBus driver</strong><p>{controllerStack?.vigemBusInstalled ? "Driver service detected (" + (controllerStack.vigemBusState || "state unknown") + ")." : "ViGEmBus was not detected. This check does not install or repair drivers."}</p></div>
           <span className={controllerStack?.vigemBusInstalled ? "console-controller-status connected" : "console-controller-status"}>{controllerStack?.vigemBusInstalled ? "Detected" : "Not detected"}</span>
         </div>
+        {(!controllerStack?.ds4WindowsInstalled || !controllerStack?.vigemBusInstalled) && (
+          <div className="console-controller-install">
+            <div className="console-controller-install-copy"><ShieldCheck size={20}/><div><strong>Automatic controller setup</strong><p>Downloads the pinned classic DS4Windows and ViGEmBus releases, verifies their SHA-256 hashes, then asks Windows for administrator approval before installing the driver.</p></div></div>
+            <button className="console-settings-button" onClick={installControllerStack} disabled={installingController}><Download size={16}/>{installingController ? "Installing controller support…" : "Install missing components"}</button>
+            <p className="console-settings-audio-note">ViGEmBus is archived/retired. This installer deliberately uses the classic DS4Windows 4.0.2.3 stack because it requires ViGEmBus. It does not silently install anything: the console confirmation and Windows UAC approval are both required.</p>
+          </div>
+        )}
         <div className="console-settings-row">
           <div><strong>Newer DS4Windows backend</strong><p>{controllerStack?.modernBackendInstalled ? "USB/IP driver detected (" + (controllerStack.modernBackendState || "state unknown") + ")." : "No USB/IP driver detected. Newer DS4Windows builds may use a different virtual-controller backend."}</p></div>
           <span className={controllerStack?.modernBackendInstalled ? "console-controller-status connected" : "console-controller-status"}>{controllerStack?.modernBackendInstalled ? "Detected" : "Not detected"}</span>
@@ -169,5 +205,13 @@ export default function ConsoleSettingsPage() {
         {powerMessage && <p className="console-settings-message"><AlertTriangle size={16} />{powerMessage}</p>}
       </section>
     </main>
+
+      {controllerToast && (
+        <aside className={`controller-setup-toast ${controllerToast.kind === "success" ? "success" : controllerToast.kind === "error" ? "error" : ""}`} role="status" aria-live="polite">
+          <div className="controller-setup-toast-icon">{controllerToast.kind === "success" ? <CheckCircle2 size={21}/> : controllerToast.kind === "error" ? <AlertTriangle size={21}/> : <ShieldCheck size={21}/>}</div>
+          <div className="controller-setup-toast-copy"><strong>{controllerToast.title}</strong><p>{controllerToast.message}</p></div>
+          <button type="button" aria-label="Dismiss notification" onClick={() => setControllerToast(null)}><X size={16}/></button>
+        </aside>
+      )}
   );
 }
