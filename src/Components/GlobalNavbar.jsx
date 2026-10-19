@@ -36,6 +36,7 @@ const GlobalNavbar = () => {
         { label: "Accessories", path: "/accessories" },
         { label: "Subscriptions", path: "/subscriptions" },
         { label: "Profile", path: "/profile" },
+        { label: "Settings", path: "/settings" },
     ];
 
     return (
@@ -126,7 +127,7 @@ const GlobalNavbar = () => {
                 </button>
 
                 <SearchIcon size={20} style={{ color: "rgba(255,255,255,0.7)", cursor: "pointer", transition: "all 0.3s" }} />
-                <Settings size={20} style={{ color: "rgba(255,255,255,0.7)", cursor: "pointer", transition: "all 0.3s" }} />
+                <Link to="/settings" aria-label="Settings" title="Settings" style={{ display: "flex", color: currentPath === "/settings" ? "#fff" : "rgba(255,255,255,0.7)" }}><Settings size={20} /></Link>
 
                 {/* User Avatar */}
                 <Link to="/profile" style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", textDecoration: "none" }}>
