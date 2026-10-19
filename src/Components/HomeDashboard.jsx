@@ -9,6 +9,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { featuredGames, onlineFriends, recentAchievements, userProfile } from "../data/mockData.js";
 
 import LogoImage from "./LogoImage.jsx";
 import { useDualSenseWS } from "./Anikator/useDualSenseWS";
