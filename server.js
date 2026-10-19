@@ -5,6 +5,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 import { scanInstalledGames, getInstalledGames, launchInstalledGame } from './server/steamLibrary.js';
+import fs from 'node:fs';
+import os from 'node:os';
+import { execFileSync } from 'node:child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -118,6 +121,108 @@ async function cachedStoreRequest(key, url) {
   storeCache.set(key, { at: Date.now(), data });
   return data;
 }
+
+// Resolve the currently signed-in local Steam account from Steam's loginusers.vdf.
+// The Web API key stays server-side in STEAM_WEB_API_KEY and is never returned to the renderer.
+function getLocalSteamAccount() {
+  const candidates = [];
+  if (process.env.STEAM_PATH) candidates.push(process.env.STEAM_PATH);
+  if (process.platform === 'win32') {
+    try {
+      const output = execFileSync('reg.exe', ['query', 'HKCU\\Software\\Valve\\Steam', '/v', 'SteamPath'], { encoding: 'utf8', windowsHide: true });
+      const match = output.match(/SteamPath\\s+REG_SZ\\s+(.+)/i);
+      if (match?.[1]) candidates.push(match[1].trim().replace(/\\//g, '\\\\'));
+    } catch {}
+    candidates.push(path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'Steam'));
+    candidates.push(path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Steam'));
+  } else if (process.platform === 'darwin') {
+    candidates.push(path.join(os.homedir(), 'Library', 'Application Support', 'Steam'));
+  } else {
+    candidates.push(path.join(os.homedir(), '.steam', 'steam'), path.join(os.homedir(), '.local', 'share', 'Steam'));
+  }
+  for (const root of candidates) {
+    try {
+      const raw = fs.readFileSync(path.join(root, 'config', 'loginusers.vdf'), 'utf8');
+      const entries = [...raw.matchAll(/"([0-9]{17})"\\s*\\{([^{}]*)\\}/g)].map((match) => {
+        const body = match[2];
+        const field = (name) => body.match(new RegExp('"' + name + '"\\\\s*"([^"]*)"', 'i'))?.[1] || '';
+        return { steamId: match[1], accountName: field('AccountName'), personaName: field('PersonaName'), mostRecent: field('MostRecent') === '1' };
+      });
+      const account = entries.find((entry) => entry.mostRecent) || entries[0];
+      if (account) return { ...account, steamId: process.env.STEAM_ID64 || account.steamId };
+    } catch {}
+  }
+  if (/^[0-9]{17}$/.test(process.env.STEAM_ID64 || '')) return { steamId: process.env.STEAM_ID64, personaName: '', accountName: '', mostRecent: true };
+  return null;
+}
+
+async function steamWebApi(interfaceName, methodName, params = {}) {
+  const key = process.env.STEAM_WEB_API_KEY;
+  if (!key) throw new Error('Add STEAM_WEB_API_KEY to the desktop app environment to load full Steam account statistics.');
+  const url = new URL(`https://api.steampowered.com/${interfaceName}/${methodName}/v1/`);
+  url.searchParams.set('key', key);
+  for (const [name, value] of Object.entries(params)) url.searchParams.set(name, String(value));
+  const response = await fetch(url, { signal: AbortSignal.timeout(12000) });
+  if (!response.ok) throw new Error(`Steam Web API returned HTTP ${response.status}`);
+  return response.json();
+}
+
+app.get('/api/v1/profile/me', async (_req, res) => {
+  const localAccount = getLocalSteamAccount();
+  if (!localAccount?.steamId) {
+    return res.json({ connected: false, needsSetup: true, message: 'Sign in to Steam on this PC, or set STEAM_ID64, to identify your account.' });
+  }
+  const base = {
+    connected: true,
+    steamId: localAccount.steamId,
+    accountName: localAccount.accountName || null,
+    personaName: localAccount.personaName || localAccount.accountName || 'Steam user',
+    avatar: null,
+    profileUrl: `https://steamcommunity.com/profiles/${localAccount.steamId}/`,
+    fullStatsAvailable: false,
+    statsUnavailableReason: process.env.STEAM_WEB_API_KEY ? null : 'Set STEAM_WEB_API_KEY in the environment used to launch this desktop app to load account statistics.',
+    games: null, totalHours: null, friends: null, level: null, recentGames: [], achievementsUnlocked: null,
+  };
+  try {
+    const [summaryPayload, gamesPayload, recentPayload, levelPayload, friendsPayload] = await Promise.all([
+      steamWebApi('ISteamUser', 'GetPlayerSummaries', { steamids: localAccount.steamId }),
+      steamWebApi('IPlayerService', 'GetOwnedGames', { steamid: localAccount.steamId, include_appinfo: 1, include_played_free_games: 1 }),
+      steamWebApi('IPlayerService', 'GetRecentlyPlayedGames', { steamid: localAccount.steamId, count: 10 }),
+      steamWebApi('IPlayerService', 'GetSteamLevel', { steamid: localAccount.steamId }),
+      steamWebApi('ISteamUser', 'GetFriendList', { steamid: localAccount.steamId, relationship: 'friend' }),
+    ]);
+    const player = summaryPayload.response?.players?.[0] || {};
+    const ownedGames = gamesPayload.response?.games || [];
+    const recentGames = recentPayload.response?.games || [];
+    const friends = friendsPayload.friendslist?.friends || [];
+    const totalMinutes = ownedGames.reduce((sum, game) => sum + Number(game.playtime_forever || 0), 0);
+    Object.assign(base, {
+      personaName: player.personaname || base.personaName,
+      avatar: player.avatarfull || player.avatarmedium || null,
+      profileUrl: player.profileurl || base.profileUrl,
+      games: gamesPayload.response?.game_count ?? ownedGames.length,
+      totalHours: Math.round(totalMinutes / 60),
+      friends: friends.length,
+      level: levelPayload.response?.player_level ?? null,
+      recentGames: recentGames.map((game) => ({
+        appId: String(game.appid),
+        name: game.name,
+        hours: Math.round(Number(game.playtime_forever || 0) / 60),
+        recentHours: Math.round(Number(game.playtime_2weeks || 0) / 60),
+        cover: `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.appid}/header.jpg`,
+        steamUrl: `https://store.steampowered.com/app/${game.appid}/`,
+      })),
+      fullStatsAvailable: true,
+      statsUnavailableReason: null,
+      // Steam has no single API endpoint for an account-wide achievements total.
+      achievementsUnlocked: null,
+    });
+    res.json(base);
+  } catch (error) {
+    base.statsUnavailableReason = error.message || 'Steam account statistics could not be loaded.';
+    res.json(base);
+  }
+});
 
 // Installed games are discovered from local Steam appmanifest files; no login
 // or Steam credentials are requested or stored.
