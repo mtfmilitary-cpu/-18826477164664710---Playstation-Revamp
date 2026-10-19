@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Search, ExternalLink, ShoppingBag, ArrowLeft, LoaderCircle, AlertCircle } from "lucide-react";
+import { Search, ExternalLink, ShoppingBag, ArrowLeft, LoaderCircle, AlertCircle, Play, Share2 } from "lucide-react";
 import { getSteamGameDetails, searchSteamStore } from "../services/steamApi";
 import "./SteamPages.css";
 
@@ -11,6 +11,7 @@ export default function SteamStorePage() {
   const [busy, setBusy] = useState(true);
   const [detailsBusy, setDetailsBusy] = useState(false);
   const [error, setError] = useState("");
+  const [shareMessage, setShareMessage] = useState("");
 
   const loadFeatured = useCallback(async () => {
     setBusy(true);
@@ -43,6 +44,26 @@ export default function SteamStorePage() {
       setError(err.message || "Couldn't search Steam right now.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  function playSelectedGame() {
+    if (!details?.appId) return;
+    window.location.href = `steam://run/${encodeURIComponent(details.appId)}`;
+    setShareMessage("Sent the launch request to Steam. If it isn't installed, Steam may offer to install it.");
+  }
+
+  async function shareSelectedGame() {
+    const url = details?.steamUrl || selected?.steamUrl;
+    if (!url) return;
+    try {
+      if (navigator.share) await navigator.share({ title: details?.name || selected?.name, url });
+      else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        setShareMessage("Steam game link copied.");
+      } else window.prompt("Copy this Steam link:", url);
+    } catch (err) {
+      if (err?.name !== "AbortError") setShareMessage("Couldn't share the link from this window.");
     }
   }
 
@@ -89,11 +110,17 @@ export default function SteamStorePage() {
                 <p className="steam-eyebrow">GAME DETAILS</p>
                 <h2>{details.name}</h2>
                 <p>{details.description || "Description not provided by Steam."}</p>
+                <p className="steam-muted">Steam App ID: <code>{details.appId}</code></p>
                 {details.genres?.length > 0 && <p className="steam-muted">{details.genres.join(" · ")}</p>}
                 <div className="steam-purchase-row">
                   <strong>{details.price || selected.price || "Price unavailable"}</strong>
-                  <a className="steam-button" href={details.steamUrl} target="_blank" rel="noreferrer">View on Steam <ExternalLink size={16} /></a>
+                  <div className="steam-card-actions">
+                    <button className="steam-button" onClick={playSelectedGame}><Play size={16} fill="currentColor" /> Play</button>
+                    <button className="steam-button steam-button-secondary" onClick={shareSelectedGame}><Share2 size={16} /> Share</button>
+                    <a className="steam-button steam-button-secondary" href={details.steamUrl} target="_blank" rel="noreferrer">View on Steam <ExternalLink size={16} /></a>
+                  </div>
                 </div>
+                {shareMessage && <p className="steam-muted">{shareMessage}</p>}
                 <p className="steam-footnote">Checkout, payment, and ownership are handled by Steam—not this app.</p>
               </div>
             </div> : <p className="steam-muted">Details are unavailable. You can still open the game's official Steam page.</p>}
