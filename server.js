@@ -184,27 +184,33 @@ app.get('/api/v1/profile/me', async (_req, res) => {
     games: null, totalHours: null, friends: null, level: null, recentGames: [], achievementsUnlocked: null,
   };
   try {
-    const [summaryPayload, gamesPayload, recentPayload, levelPayload, friendsPayload] = await Promise.all([
+    const results = await Promise.allSettled([
       steamWebApi('ISteamUser', 'GetPlayerSummaries', { steamids: localAccount.steamId }),
       steamWebApi('IPlayerService', 'GetOwnedGames', { steamid: localAccount.steamId, include_appinfo: 1, include_played_free_games: 1 }),
       steamWebApi('IPlayerService', 'GetRecentlyPlayedGames', { steamid: localAccount.steamId, count: 10 }),
       steamWebApi('IPlayerService', 'GetSteamLevel', { steamid: localAccount.steamId }),
       steamWebApi('ISteamUser', 'GetFriendList', { steamid: localAccount.steamId, relationship: 'friend' }),
     ]);
-    const player = summaryPayload.response?.players?.[0] || {};
-    const ownedGames = gamesPayload.response?.games || [];
-    const recentGames = recentPayload.response?.games || [];
-    const friends = friendsPayload.friendslist?.friends || [];
+    const value = (index) => results[index].status === 'fulfilled' ? results[index].value : null;
+    const summaryPayload = value(0);
+    const gamesPayload = value(1);
+    const recentPayload = value(2);
+    const levelPayload = value(3);
+    const friendsPayload = value(4);
+    const player = summaryPayload?.response?.players?.[0] || {};
+    const ownedGames = gamesPayload?.response?.games || [];
+    const recentGames = recentPayload?.response?.games || [];
+    const friends = friendsPayload?.friendslist?.friends || [];
     const totalMinutes = ownedGames.reduce((sum, game) => sum + Number(game.playtime_forever || 0), 0);
     Object.assign(base, {
       personaName: player.personaname || base.personaName,
       avatar: player.avatarfull || player.avatarmedium || null,
       profileUrl: player.profileurl || base.profileUrl,
       memberSince: player.timecreated ? new Date(Number(player.timecreated) * 1000).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : null,
-      games: gamesPayload.response?.game_count ?? ownedGames.length,
-      totalHours: Math.round(totalMinutes / 60),
-      friends: friends.length,
-      level: levelPayload.response?.player_level ?? null,
+      games: gamesPayload ? (gamesPayload.response?.game_count ?? ownedGames.length) : null,
+      totalHours: gamesPayload ? Math.round(totalMinutes / 60) : null,
+      friends: friendsPayload ? friends.length : null,
+      level: levelPayload?.response?.player_level ?? null,
       recentGames: recentGames.map((game) => ({
         appId: String(game.appid),
         name: game.name,
@@ -213,8 +219,10 @@ app.get('/api/v1/profile/me', async (_req, res) => {
         cover: `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.appid}/header.jpg`,
         steamUrl: `https://store.steampowered.com/app/${game.appid}/`,
       })),
-      fullStatsAvailable: true,
-      statsUnavailableReason: null,
+      fullStatsAvailable: Boolean(summaryPayload || gamesPayload || recentPayload || levelPayload || friendsPayload),
+      statsUnavailableReason: results.every((result) => result.status === 'rejected')
+        ? 'Steam could not return profile statistics. Check your API key and Steam profile privacy settings.'
+        : null,
       // Steam has no single API endpoint for an account-wide achievements total.
       achievementsUnlocked: null,
     });
