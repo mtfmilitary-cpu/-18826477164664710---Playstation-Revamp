@@ -52,8 +52,11 @@ function playstationWsPlugin() {
 export default defineConfig({
   plugins: [react(), tailwindcss(), playstationWsPlugin()],
   server: {
-    host: true,
+    host: "127.0.0.1",
     allowedHosts: true,
+    proxy: {
+      "/api": { target: "http://127.0.0.1:3000", changeOrigin: true },
+    },
   },
   define: {
     __NETWORK_IP__: JSON.stringify(getLocalIp())
