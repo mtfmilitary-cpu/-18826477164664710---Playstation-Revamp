@@ -256,9 +256,15 @@ wss.on('connection', (ws) => {
         return;
       }
       // Only permit signaling for a currently existing console party.
-      if (!partyRooms.has(partyId)) {
+      const room = partyRooms.get(partyId);
+      if (!room) {
         ws.send(JSON.stringify({ type: 'error', message: 'That party no longer exists.' }));
         ws.close(1008, 'Unknown party');
+        return;
+      }
+      if (!room.members.includes(username)) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Join the party before connecting voice.' }));
+        ws.close(1008, 'Not a party member');
         return;
       }
       ws.partyId = partyId;
