@@ -177,7 +177,7 @@ export default function Profile() {
                     </div>
                   </details>)}
                 </div>
-                {allAchievements.gamesUnavailable?.length > 0 && <p style={{color:"rgba(230,237,247,.48)",fontSize:12,marginTop:14}}>{allAchievements.gamesUnavailable.length} played game(s) did not provide achievement data, usually because the game has no Steam achievements or its stats are private.</p>}
+                {allAchievements.gamesUnavailable?.length > 0 && <p style={{color:"rgba(230,237,247,.48)",fontSize:12,marginTop:14}}>{allAchievements.gamesUnavailable.length} game(s) did not provide achievement data, usually because the game has no Steam achievements or its stats are private.</p>}
               </>}
             </section>
 
