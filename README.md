@@ -433,3 +433,15 @@ The desktop party page includes an experimental WebRTC mesh-call panel:
 The Electron app starts its signaling server on `127.0.0.1:3000` for local development. That means other people's computers cannot connect to this signaling endpoint over the internet yet. For real remote parties, deploy the Node signaling backend to a reachable HTTPS/WSS host, configure authentication and party access control, and provide a TURN service for networks where direct peer connections fail. Do not expose the unauthenticated development server directly to the public internet.
 
 This is an experimental mesh design: each participant connects directly to every other participant, so bandwidth and CPU usage grow with party size. It is best suited to small parties until a larger-scale architecture is added. Browser microphone access requires a secure context (Electron localhost or HTTPS) and user permission.
+
+
+## Steam account profile
+
+The desktop console detects the signed-in local Steam account from Steam's `config/loginusers.vdf`. To request account statistics (avatar, recently played games, owned-game count, total tracked playtime, friends count and Steam level), the backend also needs a Steam Web API key.
+
+- Create/manage a key through Steam's official Web API key page: https://steamcommunity.com/dev/apikey
+- Set `STEAM_WEB_API_KEY` in the environment **before** starting the Electron app/backend. For a one-session Windows Command Prompt test, run `set STEAM_WEB_API_KEY=your_key_here` in that terminal, then start the app from the same terminal.
+- Optionally set `STEAM_ID64` if local account detection is unavailable. Otherwise, the backend uses the most recently active account in Steam's local login list.
+- Never commit the key to GitHub or place it in renderer/frontend code. The server reads it from the environment.
+- Steam privacy settings may hide owned games, playtime or friends. Missing fields are shown as unavailable rather than replaced with demo numbers.
+- Steam does not provide a single account-wide endpoint for the total number of unlocked achievements across every game. The profile leaves that total unavailable rather than inventing a count; per-game achievement integration can be added separately.
