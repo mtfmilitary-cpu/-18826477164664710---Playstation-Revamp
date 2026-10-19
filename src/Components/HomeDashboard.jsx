@@ -9,7 +9,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { featuredGames, onlineFriends, recentAchievements, userProfile } from "../data/mockData.js";
 
 import LogoImage from "./LogoImage.jsx";
 import { useDualSenseWS } from "./Anikator/useDualSenseWS";
@@ -21,343 +20,10 @@ const CrossIcon = ({ size = 16, color = "white" }) => (
         <path d="M18 6L6 18M6 6l12 12" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
     </svg>
 );
-const CircleIcon = ({ size = 16, color = "white" }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="12" r="9" stroke={color} strokeWidth="2.5" />
-    </svg>
-);
-const TriangleIcon = ({ size = 16, color = "white" }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-        <path d="M12 4L21 20H3L12 4Z" stroke={color} strokeWidth="2.2" strokeLinejoin="round" />
-    </svg>
-);
-const SquareIcon = ({ size = 16, color = "white" }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-        <rect x="4" y="4" width="16" height="16" rx="2" stroke={color} strokeWidth="2.5" />
-    </svg>
-);
-
 /* PS Logo */
 const PSLogoMini = () => (
     <img src="https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg" alt="Steam" style={{ width: 28, height: 28, filter: "brightness(0) invert(1)" }} />
 );
-
-/* Settings gear */
-const GearIcon = ({ size = 18 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-    </svg>
-);
-
-/* Search icon */
-const SearchIcon = ({ size = 18 }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round">
-        <circle cx="11" cy="11" r="8" />
-        <path d="m21 21-4.35-4.35" />
-    </svg>
-);
-
-/* ────────────────────────────────────────────────────────────
-   UNIFIED GAME LIST — featuredGames + 6 extra library titles
-   Every entry MUST have: poster, accentColor, title.
-   logo is optional (falls back to title text).
-   fromLibrary=true → "Play Game" navigates to /library instead of doing nothing.
-──────────────────────────────────────────────────────────── */
-const extraLibraryGames = [
-    {
-        id: 101,
-        title: "GOD OF WAR",
-        genre: "Action-Adventure",
-        logo: "/store-logos/god_of_war_logo.png",
-        // same thumb URL used in StoreUI
-        poster: "https://cdn1.epicgames.com/offer/3ddd6a590da64e3686042d108968a6b2/EGS_GodofWar_SantaMonicaStudio_S1_2560x1440-5d74d9b240bba8f2c40920dcde7c5c67_2560x1440-5d74d9b240bba8f2c40920dcde7c5c67",
-        accentColor: "#c0392b",
-        fromLibrary: true,
-    },
-    {
-        id: 102,
-        title: "MARVEL'S SPIDER-MAN 2",
-        genre: "Action-Adventure",
-        logo: null,
-        // IGDB CDN — reliable, no hotlink restrictions
-        poster: "https://4kwallpapers.com/images/wallpapers/marvels-spider-man-3840x2160-12554.jpeg",
-        accentColor: "#cc0000",
-        fromLibrary: true,
-    },
-    {
-        id: 103,
-        title: "GHOST OF TSUSHIMA",
-        genre: "Action-Adventure",
-        logo: "/store-logos/ghost.png",
-        // Steam CDN library hero — Ghost of Tsushima Director's Cut (App 2215430)
-        poster: "https://cdn.cloudflare.steamstatic.com/steam/apps/2215430/library_hero.jpg",
-        accentColor: "#e67e22",
-        fromLibrary: true,
-    },
-    {
-        id: 104,
-        title: "GTA V",
-        genre: "Open World",
-        logo: "/store-logos/gta.png",
-        // Epic Games CDN — reliable
-        poster: "https://cdn1.epicgames.com/offer/b0cd075465c44f87be3b505ac04a2e46/EGS_GrandTheftAutoVEnhanced_RockstarNorth_S1_2560x1440-906d8ae76a91aafc60b1a54c23fab496",
-        accentColor: "#8e44ad",
-        fromLibrary: true,
-    },
-    {
-        id: 105,
-        title: "CYBERPUNK 2077",
-        genre: "RPG",
-        logo: "/store-logos/cp.png",
-        // Epic Games CDN — reliable
-        poster: "https://cdn1.epicgames.com/offer/77f2b98e2cef40c8a7437518bf420e47/EGS_Cyberpunk2077_CDPROJEKTRED_S1_03_2560x1440-359e77d3cd0a40aebf3bbc130d14c5c7",
-        accentColor: "#f0e040",
-        fromLibrary: true,
-    },
-    {
-        id: 106,
-        title: "THE LAST OF US",
-        genre: "Action-Adventure",
-        logo: "/store-logos/los.png",
-        // Steam CDN library hero — The Last of Us Part I (App 1888930)
-        poster: "https://cdn.cloudflare.steamstatic.com/steam/apps/1888930/library_hero.jpg",
-        accentColor: "#d4a017",
-        fromLibrary: true,
-    },
-    {
-        id: 107,
-        title: "RED DEAD II",
-        genre: "Open World",
-        logo: "/store-logos/rdr2.png",
-        // Steam CDN library hero — Red Dead Redemption 2 (App 1174180)
-        poster: "https://cdn.cloudflare.steamstatic.com/steam/apps/1174180/library_hero.jpg",
-        accentColor: "#8b4513",
-        fromLibrary: true,
-    },
-];
-
-// Single source of truth for ALL games shown on home screen
-const allGames = [...featuredGames, ...extraLibraryGames];
-
-/* ── Game Card for top carousel ── */
-const GameCard = ({ game, isActive, onClick }) => {
-    const [imgFailed, setImgFailed] = React.useState(false);
-    // accent fallback for placeholder bg
-    const accent = game.accentColor || "#1a2040";
-
-    return (
-        <div
-            data-focusable
-            onClick={onClick}
-            style={{
-                flexShrink: 0,
-                width: isActive ? "180px" : "115px",
-                height: isActive ? "105px" : "65px",
-                borderRadius: "10px",
-                overflow: "hidden",
-                cursor: "pointer",
-                border: isActive ? "2px solid rgba(255,255,255,0.9)" : "2px solid rgba(255,255,255,0.15)",
-                boxShadow: isActive ? "0 4px 24px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.15)" : "0 2px 12px rgba(0,0,0,0.5)",
-                transform: isActive ? "translateY(-6px)" : "translateY(0) scale(1)",
-                transition: "all 300ms cubic-bezier(0.4, 0, 0.2, 1)",
-                position: "relative",
-                marginRight: "4px",
-                // fallback bg shown when image is missing
-                background: imgFailed ? `linear-gradient(135deg, ${accent}55, #0d1128)` : "transparent",
-            }}
-            onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.transform = "translateY(-3px) scale(1.05)"; e.currentTarget.style.borderColor = "rgba(0,112,209,0.8)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,112,209,0.5)"; } }}
-            onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.transform = "translateY(0) scale(1)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; e.currentTarget.style.boxShadow = "0 2px 12px rgba(0,0,0,0.5)"; } }}
-        >
-            {!imgFailed && (
-                <img
-                    src={game.poster}
-                    alt={game.title}
-                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                    onError={() => setImgFailed(true)}
-                />
-            )}
-
-            {/* Always visible overlay for active card; also shown as placeholder when image fails */}
-            {(isActive || imgFailed) && (
-                <div style={{
-                    position: "absolute", inset: 0,
-                    background: imgFailed
-                        ? `linear-gradient(135deg, ${accent}33, rgba(0,0,0,0.7))`
-                        : "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 60%)",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: imgFailed ? "center" : "flex-start",
-                    justifyContent: imgFailed ? "center" : "flex-end",
-                    padding: "6px 8px",
-                }}>
-                    <span style={{
-                        fontSize: imgFailed ? "8px" : "9px",
-                        fontWeight: 700,
-                        color: "white",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.5px",
-                        textShadow: "0 1px 4px rgba(0,0,0,0.8)",
-                        textAlign: "center",
-                        lineHeight: 1.3,
-                    }}>
-                        {game.title}
-                    </span>
-                </div>
-            )}
-        </div>
-    );
-};
-
-
-/* ── Friends Panel (bottom-left floating) ── */
-const FriendsPanelOverlay = () => {
-    const online = onlineFriends.filter(f => f.status === "online" || f.status === "in-game");
-    return (
-        <div style={{
-            background: "rgba(255, 255, 255, 0.15)",
-            backdropFilter: "blur(20px)",
-            WebkitBackdropFilter: "blur(20px)",
-            borderRadius: "20px",
-            border: "1px solid rgba(255, 255, 255, 0.2)",
-            padding: "20px",
-            width: "280px",
-            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
-        }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "12px" }}>
-                <SquareIcon size={13} color="#0070d1" />
-                <span style={{ fontSize: "13px", fontWeight: 700, color: "#fff", letterSpacing: "-0.2px" }}>Friends</span>
-                <span style={{ marginLeft: "auto", fontSize: "10px", fontWeight: 700, color: "#00e676", background: "rgba(0,230,118,0.12)", border: "1px solid rgba(0,230,118,0.25)", padding: "2px 8px", borderRadius: "20px" }}>{online.length} Online</span>
-            </div>
-            {onlineFriends.slice(0, 3).map((f, i) => (
-                <div key={f.id} data-focusable style={{ display: "flex", alignItems: "center", gap: "10px", padding: "7px 4px", borderRadius: "10px", cursor: "pointer", transition: "background 150ms ease" }}
-                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
-                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                >
-                    <div style={{ position: "relative", flexShrink: 0 }}>
-                        <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: [" linear-gradient(135deg,#3a4a6b,#1e2d45)", "linear-gradient(135deg,#2a4a3a,#1a3028)", "linear-gradient(135deg,#4a3a6b,#2d1e45)"][i % 3], display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 700, color: "rgba(255,255,255,0.85)" }}>
-                            {f.username[0]}
-                        </div>
-                        <div style={{ position: "absolute", bottom: "1px", right: "1px", width: "9px", height: "9px", borderRadius: "50%", background: f.status === "in-game" ? "#0070d1" : "#00e676", border: "2px solid rgba(8,10,20,0.9)", boxShadow: f.status === "in-game" ? "0 0 5px #0070d1" : "0 0 5px #00e676" }} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: "12px", fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.username}</div>
-                        <div style={{ fontSize: "10px", color: f.currentGame ? "#8a9bb5" : "#00e676", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.currentGame || "Online"}</div>
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
-};
-
-/* ── Chat Panel (bottom-left, below friends) ── */
-const ChatOverlay = () => {
-    const [msg, setMsg] = React.useState("");
-    const [msgs, setMsgs] = React.useState([
-        { id: 1, user: "SH", text: "ggs last round 🔥", self: false },
-        { id: 2, user: "CO", text: "ready for ranked?", self: false },
-    ]);
-    const send = () => {
-        if (!msg.trim()) return;
-        setMsgs(p => [...p, { id: Date.now(), user: "GP", text: msg.trim(), self: true }]);
-        setMsg("");
-    };
-    return (
-        <div style={{
-            background: "rgba(255, 255, 255, 0.15)",
-            backdropFilter: "blur(20px)",
-            WebkitBackdropFilter: "blur(20px)",
-            borderRadius: "20px",
-            border: "1px solid rgba(255, 255, 255, 0.2)",
-            padding: "20px",
-            width: "280px",
-            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
-            overflow: "hidden"
-        }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "10px" }}>
-                <CircleIcon size={13} color="#0070d1" />
-                <span style={{ fontSize: "13px", fontWeight: 700, color: "#fff" }}>Party Chat</span>
-            </div>
-            <div style={{ display: "flex", gap: "6px", marginBottom: "10px" }}>
-                {onlineFriends.slice(0, 4).map((f, i) => (
-                    <div key={f.id} style={{ width: "28px", height: "28px", borderRadius: "50%", background: ["#3a4a6b", "#2a4a3a", "#4a3a6b", "#4a3a2a"][i], display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.85)", border: "1.5px solid rgba(255,255,255,0.1)", position: "relative" }}>
-                        {f.username[0]}
-                        <div style={{ position: "absolute", bottom: 0, right: 0, width: "7px", height: "7px", borderRadius: "50%", background: "#00e676", border: "1.5px solid rgba(8,10,20,0.9)" }} />
-                    </div>
-                ))}
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "12px", maxHeight: "150px", overflowY: "auto", paddingRight: "4px" }}>
-                {msgs.slice(-4).map(m => (
-                    <div key={m.id} style={{ display: "flex", gap: "6px", alignItems: "flex-start", justifyContent: m.self ? "flex-end" : "flex-start" }}>
-                        {!m.self && <span style={{ fontSize: "10px", fontWeight: 700, color: "#0070d1", minWidth: "20px", paddingTop: "2px" }}>{m.user}</span>}
-                        <span style={{ fontSize: "12px", color: "#e0e0e0", background: m.self ? "rgba(0,112,209,0.3)" : "rgba(255,255,255,0.1)", borderRadius: "12px", padding: "6px 10px", maxWidth: "180px", lineHeight: "1.4" }}>{m.text}</span>
-                    </div>
-                ))}
-            </div>
-            <div style={{ display: "flex", gap: "6px" }}>
-                <input
-                    value={msg}
-                    onChange={e => setMsg(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && send()}
-                    placeholder="Type message..."
-                    style={{ flex: 1, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", color: "#fff", fontSize: "11px", padding: "6px 10px", outline: "none" }}
-                />
-                <button onClick={send} style={{ background: "#0070d1", border: "none", borderRadius: "8px", padding: "0 10px", cursor: "pointer", display: "flex", alignItems: "center" }}>
-                    <TriangleIcon size={12} color="white" />
-                </button>
-            </div>
-        </div>
-    );
-};
-
-/* ── Stats/Achievements box (bottom-right) ── */
-const StatsBox = ({ game }) => {
-    const progressPct = Math.round((userProfile.currentXP / userProfile.nextLevelXP) * 100);
-    const trophyCount = recentAchievements.length;
-
-    return (
-        <div style={{
-            background: "rgba(255, 255, 255, 0.15)",
-            backdropFilter: "blur(20px)",
-            WebkitBackdropFilter: "blur(20px)",
-            borderRadius: "20px",
-            border: "1px solid rgba(255, 255, 255, 0.2)",
-            padding: "24px 28px",
-            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
-            minWidth: "320px",
-        }}
-            onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 8px 32px rgba(0, 112, 209, 0.3)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 8px 32px rgba(0, 0, 0, 0.1)"; }}
-        >
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="#f5a623"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2z" /></svg>
-                <span style={{ fontSize: "16px", fontWeight: 700, color: "#fff" }}>Progress & Trophies</span>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: "12px", padding: "10px 12px", border: "1px solid rgba(255,255,255,0.07)" }}>
-                    <div style={{ fontSize: "9px", color: "#8a9bb5", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: "4px" }}>Level Progress</div>
-                    <div style={{ fontSize: "22px", fontWeight: 900, color: "#fff", lineHeight: 1 }}>{progressPct}%</div>
-                    <div style={{ height: "3px", background: "rgba(255,255,255,0.1)", borderRadius: "2px", marginTop: "8px" }}>
-                        <div style={{ width: `${progressPct}%`, height: "100%", background: "linear-gradient(90deg, #0070d1, #00d4ff)", borderRadius: "2px" }} />
-                    </div>
-                    <div style={{ fontSize: "9px", color: "#8a9bb5", marginTop: "4px" }}>Lv {userProfile.level} → {userProfile.nextLevel}</div>
-                </div>
-                <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: "12px", padding: "10px 12px", border: "1px solid rgba(255,255,255,0.07)" }}>
-                    <div style={{ fontSize: "9px", color: "#8a9bb5", fontWeight: 600, letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: "4px" }}>Earned</div>
-                    <div style={{ fontSize: "22px", fontWeight: 900, color: "#fff", lineHeight: 1 }}>{trophyCount}/{trophyCount + 42}</div>
-                    <div style={{ display: "flex", gap: "6px", marginTop: "8px" }}>
-                        {[{ color: "#FFD700", count: 0 }, { color: "#C0C0C0", count: 0 }, { color: "#CD7F32", count: trophyCount }].map((t, i) => (
-                            <div key={i} style={{ display: "flex", alignItems: "center", gap: "3px" }}>
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill={t.color}><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2z" /></svg>
-                                <span style={{ fontSize: "9px", color: "#8a9bb5" }}>{t.count}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
 
 const SteamStatsPanel = ({ profile, onOpenProfile }) => (
     <div style={{ background: "rgba(16,20,27,.72)", backdropFilter: "blur(22px)", WebkitBackdropFilter: "blur(22px)", borderRadius: 16, border: "1px solid rgba(255,255,255,.16)", padding: "16px 18px", width: 300, maxWidth: "30vw", color: "#fff", boxShadow: "0 8px 32px rgba(0,0,0,.25)" }}>
@@ -379,10 +45,8 @@ const HomeDashboard = () => {
 
     // activeIdx now indexes into allGames (not just featuredGames)
     const [activeIdx, setActiveIdx] = useState(0);
-    const [tab, setTab] = useState("Games");
     const [focusZone, setFocusZone] = useState("GAMES");
     const [navIdx, setNavIdx] = useState(0);
-    const [quickIdx, setQuickIdx] = useState(0);
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [resolvedGame, setResolvedGame] = useState(null);
     const [steamDetails, setSteamDetails] = useState(null);
@@ -437,19 +101,18 @@ const HomeDashboard = () => {
                 const t = navItems[navIdx];
                 if (t === "Friends") navigate("/friends");
                 else if (t === "Store") navigate("/store");
-                else setTab(t);
+                // "Games" is already the active screen.
             }
         }
         else if (focusZone === "QUICK") {
             if (action === "DPAD_LEFT") {
                 setFocusZone("NAV");
             } else if (action === "DPAD_RIGHT") {
-                setQuickIdx(0);
             } else if (action === "DPAD_DOWN") {
                 setFocusZone("GAMES");
             }
         }
-    }, [action, focusZone, navIdx, quickIdx, displayGames.length]);
+    }, [action, focusZone, navIdx, displayGames.length]);
 
     // Auto-rotate only when real Steam games are available.
     useEffect(() => {
