@@ -15,7 +15,7 @@ function parseManifest(text) {
     return match?.[1] ?? "";
   };
   const appId = value("appid");
-  if (!/^\\d+$/.test(appId)) return null;
+  if (!/^\d+$/.test(appId)) return null;
   return {
     appId,
     name: value("name") || `Steam App ${appId}`,
@@ -29,7 +29,7 @@ function readLibraryFolders(steamRoot) {
   const file = path.join(steamRoot, "steamapps", "libraryfolders.vdf");
   try {
     const contents = fs.readFileSync(file, "utf8");
-    for (const match of contents.matchAll(/"path"\\s*"([^"]+)"/g)) {
+    for (const match of contents.matchAll(/"path"\s*"([^"]+)"/g)) {
       libraries.add(match[1].replace(/\\\\/g, "\\"));
     }
   } catch { /* Older Steam installs may not have libraryfolders.vdf. */ }
@@ -63,7 +63,7 @@ export function scanInstalledGames() {
       let entries = [];
       try { entries = fs.readdirSync(appsDir); } catch { continue; }
       for (const filename of entries) {
-        if (!/^appmanifest_\\d+\\.acf$/i.test(filename)) continue;
+        if (!/^appmanifest_\d+\.acf$/i.test(filename)) continue;
         try {
           const manifest = parseManifest(fs.readFileSync(path.join(appsDir, filename), "utf8"));
           if (!manifest) continue;
@@ -90,7 +90,7 @@ export function getInstalledGames() {
 
 export async function launchInstalledGame(appId) {
   const normalized = String(appId ?? "");
-  if (!/^\\d+$/.test(normalized)) throw new Error("A valid Steam App ID is required.");
+  if (!/^\d+$/.test(normalized)) throw new Error("A valid Steam App ID is required.");
   const { games } = getInstalledGames();
   if (!games.some((game) => game.appId === normalized)) {
     throw new Error("That game is not in the detected installed Steam library. Refresh the library first.");
