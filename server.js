@@ -43,7 +43,6 @@ const wss = new WebSocketServer({ noServer: true });
 const PORT = Number(process.env.PORT || 3000);
 
 app.disable('x-powered-by');
-app.use(express.json({ limit: '64kb' }));
 
 // One timeline for backend activity. Never record query strings, request bodies,
 // cookies, authorization headers, or private chat contents.
@@ -65,6 +64,8 @@ app.use((req, res, next) => {
   });
   next();
 });
+
+app.use(express.json({ limit: '64kb' }));
 
 app.use('/api/v1', (req, res, next) => {
   res.set('Cache-Control', 'no-store');
