@@ -265,14 +265,15 @@ ipcMain.handle("console:install-controller-stack", async (event) => {
   if (confirmation.response !== 1) return { cancelled: true };
   const tempRoot = path.join(app.getPath("temp"), "console-controller-setup");
   fs.mkdirSync(tempRoot, { recursive: true });
-  const scriptPath = path.join(projectRoot, "scripts", "install-controller-stack.ps1");
-  if (!fs.existsSync(scriptPath)) throw new Error("Controller installer script is missing. Update the project and try again.");
+  const sourceScriptPath = path.join(projectRoot, "scripts", "install-controller-stack.ps1");
+  if (!fs.existsSync(sourceScriptPath)) throw new Error("Controller installer script is missing. Update the project and try again.");
+  const scriptPath = path.join(tempRoot, "install-controller-stack.ps1");
+  fs.copyFileSync(sourceScriptPath, scriptPath);
   const progressPath = path.join(tempRoot, "progress.json");
   const resultPath = path.join(tempRoot, "result.json");
   for (const file of [progressPath, resultPath]) { try { fs.unlinkSync(file); } catch {} }
   const sendProgress = (progress) => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("console:controller-setup-progress", progress); };
   sendProgress({ stage: "approval", title: "Waiting for administrator approval", message: "Approve the Windows UAC prompt to continue installing the driver.", kind: "info" });
-  const quote = (value) => String(value).replace(/'/g, "''");
   const argLine = "-NoProfile -ExecutionPolicy Bypass -File \"" + scriptPath + "\" -ProgressPath \"" + progressPath + "\" -ResultPath \"" + resultPath + "\"";
   const parentCommand = "$p = Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList '" + argLine.replace(/'/g, "''") + "' -Wait -PassThru; exit $p.ExitCode";
   let lastProgress = "";
