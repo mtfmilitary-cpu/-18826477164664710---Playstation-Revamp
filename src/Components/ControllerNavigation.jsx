@@ -250,6 +250,7 @@ export default function ControllerNavigationProvider({ children }) {
         let frameId;
         let lastDirectionAt = 0;
         const previousButtons = new Map();
+        let initializedPad = false;
         const poll = (timestamp) => {
             if (document.hasFocus()) {
                 const pads = navigator.getGamepads?.() || [];
@@ -258,10 +259,14 @@ export default function ControllerNavigationProvider({ children }) {
                     const rising = (index) => {
                         const key = String(pad.index) + ":" + String(index);
                         const down = Boolean(pad.buttons[index]?.pressed);
-                        const wasDown = previousButtons.get(key) || false;
+                        const wasDown = previousButtons.get(key);
                         previousButtons.set(key, down);
-                        return down && !wasDown;
+                        return initializedPad && down && wasDown === false;
                     };
+                    if (!initializedPad) {
+                        pad.buttons.forEach((button, index) => previousButtons.set(String(pad.index) + ":" + String(index), Boolean(button?.pressed)));
+                        initializedPad = true;
+                    }
                     let direction = null;
                     if (rising(12) || (pad.axes[1] < -0.65 && timestamp - lastDirectionAt > 190)) direction = "up";
                     else if (rising(13) || (pad.axes[1] > 0.65 && timestamp - lastDirectionAt > 190)) direction = "down";
@@ -270,6 +275,9 @@ export default function ControllerNavigationProvider({ children }) {
                     if (direction && timestamp - lastDirectionAt > 120) {
                         lastDirectionAt = timestamp;
                         processDirection(direction);
+                    }
+                    if (rising(9)) {
+                        window.consoleBridge?.toggleQuickMenu?.().catch(() => {});
                     }
                     if (rising(0)) {
                         if (focusedRef.current && isActiveRef.current) focusedRef.current.click();
