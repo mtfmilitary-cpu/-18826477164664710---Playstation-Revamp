@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { featuredGames, recentlyPlayedGames, onlineFriends, recentAchievements, userProfile } from "../data/mockData.js";
 import LogoImage from "./LogoImage.jsx";
 import { useDualSenseWS } from "./Anikator/useDualSenseWS";
+import { searchSteamStore, getSteamGameDetails } from "../services/steamApi";
 
 /* ── PS Button SVG Icons ── */
 const CrossIcon = ({ size = 16, color = "white" }) => (
@@ -370,6 +371,11 @@ const HomeDashboard = () => {
     const [focusZone, setFocusZone] = useState("GAMES");
     const [navIdx, setNavIdx] = useState(0);
     const [quickIdx, setQuickIdx] = useState(0);
+    const [detailsOpen, setDetailsOpen] = useState(false);
+    const [resolvedGame, setResolvedGame] = useState(null);
+    const [steamDetails, setSteamDetails] = useState(null);
+    const [detailsBusy, setDetailsBusy] = useState(false);
+    const [detailsMessage, setDetailsMessage] = useState("");
     const navItems = ["Games", "Media", "Accessories", "Showcase", "Store"];
 
     // Navigation logic for D-Pad — cycles through allGames
@@ -417,6 +423,50 @@ const HomeDashboard = () => {
         const t = setInterval(() => setActiveIdx(i => (i + 1) % allGames.length), 8000);
         return () => clearInterval(t);
     }, []);
+
+    async function openGameDetails(selectedGame) {
+        setDetailsOpen(true);
+        setResolvedGame(null);
+        setSteamDetails(null);
+        setDetailsMessage("");
+        setDetailsBusy(true);
+        try {
+            const search = await searchSteamStore(selectedGame.title || selectedGame.name || "");
+            const items = search.items || [];
+            const wanted = (selectedGame.title || selectedGame.name || "").trim().toLowerCase();
+            const match = items.find((item) => item.name.trim().toLowerCase() === wanted) || items[0] || null;
+            if (!match) {
+                setResolvedGame({ ...selectedGame, name: selectedGame.title || selectedGame.name, appId: null, steamUrl: null });
+                setDetailsMessage("No matching Steam Store listing was found. The description below is from the console's featured-game entry.");
+                return;
+            }
+            setResolvedGame(match);
+            try { setSteamDetails(await getSteamGameDetails(match.appId)); }
+            catch { setDetailsMessage("Steam found the game, but its full description is currently unavailable."); }
+        } catch {
+            setResolvedGame({ ...selectedGame, name: selectedGame.title || selectedGame.name, appId: null, steamUrl: null });
+            setDetailsMessage("Steam search is unavailable right now. Showing the console's game information.");
+        } finally { setDetailsBusy(false); }
+    }
+
+    async function shareSelectedGame() {
+        const url = steamDetails?.steamUrl || resolvedGame?.steamUrl;
+        if (!url) { setDetailsMessage("There isn't a verified Steam page to share for this game yet."); return; }
+        try {
+            if (navigator.share) await navigator.share({ title: steamDetails?.name || resolvedGame?.name, url });
+            else if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(url);
+                setDetailsMessage("Steam game link copied.");
+            } else window.prompt("Copy this Steam link:", url);
+        } catch (error) { if (error?.name !== "AbortError") setDetailsMessage("Couldn't share the link from this window."); }
+    }
+
+    function launchSelectedGame() {
+        const appId = steamDetails?.appId || resolvedGame?.appId;
+        if (!appId) { setDetailsMessage("No verified Steam App ID is available. Try searching the Steam Store."); return; }
+        window.location.href = `steam://run/${encodeURIComponent(appId)}`;
+        setDetailsMessage("Sent the launch request to Steam.");
+    }
 
     // Current active game (from the full list)
     const game = allGames[activeIdx];
@@ -540,7 +590,7 @@ const HomeDashboard = () => {
                             key={g.id}
                             game={g}
                             isActive={i === activeIdx}
-                            onClick={() => setActiveIdx(i)}   // ← ALWAYS select first, never navigate directly
+                            onClick={() => { setActiveIdx(i); openGameDetails(g); }}
                         />
                     ))}
                 </div>
@@ -605,9 +655,7 @@ const HomeDashboard = () => {
                                 <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                                     {/* Play Now / View in Library button */}
                                     <button
-                                        onClick={() => {
-                                            if (game.fromLibrary) navigate("/library");
-                                        }}
+                                        onClick={() => openGameDetails(game)}
                                         style={{
                                             display: "flex", alignItems: "center", gap: "8px",
                                             background: "rgba(255,255,255,0.9)",
@@ -625,7 +673,7 @@ const HomeDashboard = () => {
                                         onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.9)"; e.currentTarget.style.transform = "scale(1)"; }}
                                     >
                                         <CrossIcon size={14} color="#000" />
-                                        {game.fromLibrary ? "View in Library" : "Play Game"}
+                                        {"Game Details"}
                                     </button>
 
                                     {/* More options button */}
@@ -684,6 +732,28 @@ const HomeDashboard = () => {
                 </div>
             </div>
         </div>
+            {detailsOpen && (
+                <div role="dialog" aria-modal="true" aria-label="Game details" onClick={() => setDetailsOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 200000, display: "grid", placeItems: "center", padding: 20, background: "rgba(0,0,0,.78)", backdropFilter: "blur(14px)" }}>
+                    <section onClick={(event) => event.stopPropagation()} style={{ width: "min(860px, 100%)", maxHeight: "90vh", overflow: "auto", borderRadius: 18, padding: 24, color: "#fff", background: "#101721", border: "1px solid rgba(255,255,255,.16)", boxShadow: "0 24px 90px rgba(0,0,0,.5)" }}>
+                        <button onClick={() => setDetailsOpen(false)} style={{ background: "transparent", border: "1px solid rgba(255,255,255,.18)", borderRadius: 8, color: "#fff", padding: "8px 12px", cursor: "pointer" }}>← Back to Games</button>
+                        {detailsBusy ? <p style={{ color: "rgba(255,255,255,.65)", padding: 24 }}>Looking up the real Steam listing…</p> : (
+                            <>
+                                <img src={steamDetails?.cover || resolvedGame?.cover || resolvedGame?.poster || game.poster} alt="" style={{ width: "100%", maxHeight: 280, objectFit: "cover", borderRadius: 12, marginTop: 16, background: "#1a2230" }} />
+                                <h2 style={{ fontSize: 30, margin: "18px 0 8px" }}>{steamDetails?.name || resolvedGame?.name || game.title}</h2>
+                                <p style={{ lineHeight: 1.65, color: "rgba(235,241,250,.8)" }}>{steamDetails?.description || resolvedGame?.description || "No description is available for this featured title yet."}</p>
+                                <p style={{ color: "rgba(235,241,250,.68)" }}>Steam App ID: <code>{steamDetails?.appId || resolvedGame?.appId || "Not found"}</code></p>
+                                {steamDetails?.genres?.length > 0 && <p style={{ color: "rgba(235,241,250,.55)" }}>{steamDetails.genres.join(" · ")}</p>}
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 18 }}>
+                                    <button onClick={launchSelectedGame} disabled={!steamDetails?.appId && !resolvedGame?.appId} style={{ display: "inline-flex", gap: 8, alignItems: "center", padding: "11px 18px", border: 0, borderRadius: 8, background: "#f2f5f8", color: "#111820", fontWeight: 700, cursor: "pointer" }}>▶ Play</button>
+                                    <button onClick={shareSelectedGame} style={{ padding: "11px 18px", border: "1px solid rgba(255,255,255,.2)", borderRadius: 8, background: "rgba(255,255,255,.07)", color: "#fff", cursor: "pointer" }}>↗ Share</button>
+                                    {(steamDetails?.steamUrl || resolvedGame?.steamUrl) && <a href={steamDetails?.steamUrl || resolvedGame?.steamUrl} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", padding: "11px 18px", border: "1px solid rgba(255,255,255,.2)", borderRadius: 8, color: "#fff", textDecoration: "none" }}>Steam Store ↗</a>}
+                                </div>
+                                {detailsMessage && <p style={{ color: "rgba(235,241,250,.62)", marginTop: 14 }}>{detailsMessage}</p>}
+                            </>
+                        )}
+                    </section>
+                </div>
+            )}
     );
 };
 
