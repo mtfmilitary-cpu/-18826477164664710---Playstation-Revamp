@@ -23,6 +23,7 @@ export default function QuickMenu() {
   const [parties, setParties] = useState([]);
   const [party, setParty] = useState(null);
   const [partyName, setPartyName] = useState("");
+  const [inviteName, setInviteName] = useState("");
   const [username, setUsername] = useState(() => localStorage.getItem("console-username") || "GamerPro");
   const [busy, setBusy] = useState(false);
   const [achievementGame, setAchievementGame] = useState(null);
@@ -115,6 +116,21 @@ export default function QuickMenu() {
     finally { setBusy(false); }
   }
 
+  async function sendPartyInvite(event) {
+    event.preventDefault();
+    if (!party || !inviteName.trim()) return;
+    setNotice("");
+    try {
+      const data = await request("/api/v1/party/" + encodeURIComponent(party.id) + "/invite", {
+        method: "POST",
+        body: JSON.stringify({ username, friend: inviteName.trim() }),
+      });
+      setParty(data.party);
+      setNotice("Invite added for " + inviteName.trim() + ".");
+      setInviteName("");
+    } catch (error) { setNotice(error.message); }
+  }
+
   async function leaveParty() {
     if (!party) return;
     try { await request("/api/v1/party/" + encodeURIComponent(party.id) + "/leave", { method: "POST", body: JSON.stringify({ username }) }); }
@@ -192,7 +208,7 @@ export default function QuickMenu() {
               <h3><Users size={15}/> Active parties</h3>
               {parties.length ? parties.map((item) => <div className="quick-menu-party" key={item.id}><span><strong>{item.name}</strong><small>{item.members.length} member(s) · Host {item.host}</small></span><button disabled={busy} onClick={() => joinParty(item.id)}>Join</button></div>) : <p className="quick-menu-muted">No active parties. Create one to begin.</p>}
             </> : <>
-              <div className="quick-menu-party-active"><strong>{party.name}</strong><span>{party.members.length} member(s): {party.members.join(", ")}</span><button className="quick-menu-action" onClick={leaveParty}><LogOut size={14}/> Leave party</button></div>
+              <div className="quick-menu-party-active"><strong>{party.name}</strong><span>{party.members.length} member(s): {party.members.join(", ")}</span><form className="quick-menu-invite-form" onSubmit={sendPartyInvite}><input value={inviteName} onChange={(event) => setInviteName(event.target.value)} placeholder="Steam friend display name" maxLength={32}/><button type="submit" disabled={!inviteName.trim()}>Invite</button></form><p className="quick-menu-muted">Invites are currently recorded in this console party. Friends need to join from a shared party session.</p><button className="quick-menu-action" onClick={leaveParty}><LogOut size={14}/> Leave party</button></div>
               <PeerCallPanel party={party} username={username}/>
               <button className="quick-menu-action" onClick={() => { setOpen(false); navigate("/party"); }}>Open full party screen</button>
             </>}
