@@ -25,6 +25,10 @@ export default function QuickMenu() {
   const [partyName, setPartyName] = useState("");
   const [username, setUsername] = useState(() => localStorage.getItem("console-username") || "GamerPro");
   const [busy, setBusy] = useState(false);
+  const [achievementGame, setAchievementGame] = useState(null);
+  const [achievementData, setAchievementData] = useState(null);
+  const [achievementBusy, setAchievementBusy] = useState(false);
+  const [achievementError, setAchievementError] = useState("");
   const navigate = useNavigate();
   const active = items.find((item) => item.id === selected) || items[0];
 
@@ -197,10 +201,27 @@ export default function QuickMenu() {
 
           {active.id === "music" && <div className="quick-menu-section"><p className="quick-menu-muted">Music stays as it is in the current console build.</p></div>}
           {active.id === "achievements" && <div className="quick-menu-section">
-            <h3><Trophy size={15}/> Recent Steam games</h3>
-            {profile?.recentGames?.length ? profile.recentGames.map((game) => <div className="quick-menu-game" key={game.appId}>{game.cover && <img src={game.cover} alt=""/>}<span><strong>{game.name}</strong><small>{game.hours} total hours · {game.recentHours} in the last 2 weeks</small></span></div>) : <p className="quick-menu-muted">Recent games require a working Steam Web API key and visible profile/game details.</p>}
-            <p className="quick-menu-muted">Steam achievements are game-specific. This panel won't invent a total; the all-games achievement count isn't available from a single public API call.</p>
-            <button className="quick-menu-action" onClick={() => { setOpen(false); navigate("/library"); }}>Open game library</button>
+            {achievementData ? <>
+              <button className="quick-menu-action secondary" onClick={() => { setAchievementData(null); setAchievementGame(null); setAchievementError(""); }}>← All recent games</button>
+              <h3><Trophy size={15}/>{achievementData.gameName || achievementGame?.name || "Game achievements"}</h3>
+              <div className="quick-menu-inline-stats"><strong>{achievementData.unlocked} / {achievementData.total} unlocked</strong><span>{achievementData.total ? Math.round(achievementData.unlocked / achievementData.total * 100) + "%" : "No achievements"}</span></div>
+              <div className="quick-menu-achievement-list">{achievementData.achievements.map((achievement) => <div className="quick-menu-achievement" key={achievement.apiName}><Trophy size={15} className={achievement.achieved ? "unlocked" : ""}/><span><strong>{achievement.name}</strong><small>{achievement.description || (achievement.achieved ? "Unlocked" : "Not unlocked")}</small></span><i className={achievement.achieved ? "unlocked" : ""}/></div>)}</div>
+            </> : <>
+              <h3><Trophy size={15}/> Choose a recently played game</h3>
+              {profile?.recentGames?.length ? profile.recentGames.map((game) => <button className="quick-menu-game quick-menu-game-button" key={game.appId} disabled={achievementBusy} onClick={async () => {
+                setAchievementGame(game); setAchievementData(null); setAchievementBusy(true); setAchievementError("");
+                try {
+                  const response = await fetch("/api/v1/profile/achievements/" + encodeURIComponent(game.appId), { cache: "no-store" });
+                  const data = await response.json();
+                  if (!response.ok) throw new Error(data.error || "Achievements are unavailable for this game.");
+                  setAchievementData(data);
+                } catch (error) { setAchievementError(error.message || "Achievements could not be loaded."); }
+                finally { setAchievementBusy(false); }
+              }}>{game.cover && <img src={game.cover} alt=""/>}<span><strong>{game.name}</strong><small>{game.hours} total hours · {game.recentHours} in the last 2 weeks</small></span></button>) : <p className="quick-menu-muted">Recent games require a working Steam Web API key and visible profile/game details.</p>}
+              {achievementBusy && <p className="quick-menu-muted">Loading achievements from Steam…</p>}
+              {achievementError && <p className="quick-menu-notice" role="alert">{achievementError}</p>}
+            </>}
+            <p className="quick-menu-muted">Achievement details are fetched per game from Steam. Some games do not expose achievement data, and private profile settings may restrict access.</p>
           </div>}
 
           {active.id === "power" && <div className="quick-menu-power-actions">
