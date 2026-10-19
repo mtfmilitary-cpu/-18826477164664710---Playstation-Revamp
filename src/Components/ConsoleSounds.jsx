@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 
 const FILES = {
@@ -21,6 +21,8 @@ export default function ConsoleSounds() {
   const audioRefs = useRef({});
   const availableRef = useRef({});
   const lastHoverRef = useRef(null);
+  const [checkedFiles, setCheckedFiles] = useState(false);
+  const [settingsVersion, setSettingsVersion] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,7 +34,7 @@ export default function ConsoleSounds() {
         return [key, false];
       }
     })).then((results) => {
-      if (!cancelled) availableRef.current = Object.fromEntries(results);
+      if (!cancelled) { availableRef.current = Object.fromEntries(results); setCheckedFiles(true); }
     });
     return () => { cancelled = true; };
   }, []);
@@ -115,11 +117,12 @@ export default function ConsoleSounds() {
         background.currentTime = 0;
       }
     };
-  }, [location.pathname]);
+  }, [location.pathname, checkedFiles, settingsVersion]);
 
   useEffect(() => {
     const onSettingsChanged = () => {
       const settings = readSettings();
+      setSettingsVersion((version) => version + 1);
       Object.entries(audioRefs.current).forEach(([key, audio]) => {
         audio.volume = settings.volume;
         if (!settings.enabled) {
