@@ -434,7 +434,7 @@ const HomeDashboard = () => {
             const search = await searchSteamStore(selectedGame.title || selectedGame.name || "");
             const items = search.items || [];
             const wanted = (selectedGame.title || selectedGame.name || "").trim().toLowerCase();
-            const match = items.find((item) => item.name.trim().toLowerCase() === wanted) || items[0] || null;
+            const match = items.find((item) => item.name.trim().toLowerCase() === wanted) || items.find((item) => item.name.trim().toLowerCase().includes(wanted) || wanted.includes(item.name.trim().toLowerCase())) || null;
             if (!match) {
                 setResolvedGame({ ...selectedGame, name: selectedGame.title || selectedGame.name, appId: null, steamUrl: null });
                 setDetailsMessage("No matching Steam Store listing was found. The description below is from the console's featured-game entry.");
