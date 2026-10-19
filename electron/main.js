@@ -178,6 +178,7 @@ ipcMain.handle("console:renderer-diagnostic", (event, entry) => {
   diagnostic(code, message, null, level, {
     name: clean(entry.name, 80),
     detail: clean(entry.detail, 600),
+    componentStack: clean(entry.componentStack, 900),
   });
   return true;
 });
