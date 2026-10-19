@@ -9,7 +9,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { featuredGames, recentlyPlayedGames, onlineFriends, recentAchievements, userProfile } from "../data/mockData.js";
+
 import LogoImage from "./LogoImage.jsx";
 import { useDualSenseWS } from "./Anikator/useDualSenseWS";
 import { searchSteamStore, getSteamGameDetails } from "../services/steamApi";
@@ -358,6 +358,17 @@ const StatsBox = ({ game }) => {
     );
 };
 
+const SteamStatsPanel = ({ profile, onOpenProfile }) => (
+    <div style={{ background: "rgba(16,20,27,.72)", backdropFilter: "blur(22px)", WebkitBackdropFilter: "blur(22px)", borderRadius: 16, border: "1px solid rgba(255,255,255,.16)", padding: "16px 18px", width: 300, maxWidth: "30vw", color: "#fff", boxShadow: "0 8px 32px rgba(0,0,0,.25)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}><img src="https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg" alt="" style={{ width: 18, height: 18, filter: "brightness(0) invert(1)" }}/><strong style={{fontSize:13}}>Steam account stats</strong></div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        {[["Total playtime",profile?.totalHours == null ? "—" : Number(profile.totalHours).toLocaleString()+" h"],["Games",profile?.games == null ? "—" : Number(profile.games).toLocaleString()],["Friends",profile?.friends == null ? "—" : Number(profile.friends).toLocaleString()],["Steam level",profile?.level == null ? "—" : profile.level]].map(([label,value])=><div key={label} style={{padding:"10px",borderRadius:9,background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.07)"}}><div style={{fontSize:9,color:"#aeb9c8",textTransform:"uppercase",letterSpacing:".6px",marginBottom:5}}>{label}</div><div style={{fontSize:20,fontWeight:750}}>{value}</div></div>)}
+      </div>
+      <button onClick={onOpenProfile} style={{marginTop:10,width:"100%",padding:"9px 12px",borderRadius:8,border:"1px solid rgba(255,255,255,.18)",background:"rgba(255,255,255,.1)",color:"#fff",cursor:"pointer",fontSize:11}}>View profile & achievements</button>
+      {!profile?.fullStatsAvailable && <div style={{fontSize:10,color:"#f1d2a0",marginTop:8}}>Steam stats unavailable. Check the API key and profile privacy.</div>}
+    </div>
+);
+
 /* ─────────────────────────────────────────────────────────────
    MAIN HOME DASHBOARD
 ───────────────────────────────────────────────────────────── */
@@ -376,7 +387,26 @@ const HomeDashboard = () => {
     const [steamDetails, setSteamDetails] = useState(null);
     const [detailsBusy, setDetailsBusy] = useState(false);
     const [detailsMessage, setDetailsMessage] = useState("");
+    const [steamProfile, setSteamProfile] = useState(null);
+    const [steamGames, setSteamGames] = useState([]);
+    const [steamGamesLoading, setSteamGamesLoading] = useState(true);
     const navItems = ["Games", "Friends", "Store"];
+    const displayGames = steamGames.map((item) => ({ ...item, title: item.name, poster: item.hero || item.cover, accentColor: "#3d7ec9", genre: "Steam library", fromLibrary: true, logo: null }));
+
+    useEffect(() => {
+        let cancelled = false;
+        fetch("/api/v1/profile/me", { cache: "no-store" }).then((response) => response.json()).then((data) => {
+            if (cancelled) return;
+            setSteamProfile(data);
+            if (Array.isArray(data.ownedGames)) setSteamGames(data.ownedGames);
+            else setSteamGames([]);
+        }).catch(() => { if (!cancelled) { setSteamProfile(null); setSteamGames([]); } }).finally(() => { if (!cancelled) setSteamGamesLoading(false); });
+        return () => { cancelled = true; };
+    }, []);
+
+    useEffect(() => {
+        if (activeIdx >= displayGames.length) setActiveIdx(Math.max(0, displayGames.length - 1));
+    }, [displayGames.length, activeIdx]);
 
     // Navigation logic for D-Pad — cycles through allGames
     useEffect(() => {
@@ -384,9 +414,9 @@ const HomeDashboard = () => {
 
         if (focusZone === "GAMES") {
             if (action === "DPAD_LEFT") {
-                setActiveIdx(i => (i - 1 + allGames.length) % allGames.length);
+                setActiveIdx(i => (i - 1 + displayGames.length) % displayGames.length);
             } else if (action === "DPAD_RIGHT") {
-                setActiveIdx(i => (i + 1) % allGames.length);
+                setActiveIdx(i => (i + 1) % displayGames.length);
             } else if (action === "DPAD_UP") {
                 setFocusZone("NAV");
             }
@@ -417,11 +447,12 @@ const HomeDashboard = () => {
         }
     }, [action, focusZone, navIdx, quickIdx]);
 
-    // Auto-rotate through allGames (first 3 featured then loop)
+    // Auto-rotate only when real Steam games are available.
     useEffect(() => {
-        const t = setInterval(() => setActiveIdx(i => (i + 1) % allGames.length), 8000);
+        if (displayGames.length < 2) return;
+        const t = setInterval(() => setActiveIdx(i => (i + 1) % displayGames.length), 8000);
         return () => clearInterval(t);
-    }, []);
+    }, [displayGames.length]);
 
     async function openGameDetails(selectedGame) {
         setDetailsOpen(true);
@@ -430,6 +461,12 @@ const HomeDashboard = () => {
         setDetailsMessage("");
         setDetailsBusy(true);
         try {
+            if (selectedGame.appId) {
+                setResolvedGame({ appId: String(selectedGame.appId), name: selectedGame.title || selectedGame.name, steamUrl: selectedGame.steamUrl || `https://store.steampowered.com/app/${selectedGame.appId}/` });
+                try { setSteamDetails(await getSteamGameDetails(selectedGame.appId)); }
+                catch { setDetailsMessage("Steam found this game, but its full description is currently unavailable."); }
+                return;
+            }
             const search = await searchSteamStore(selectedGame.title || selectedGame.name || "");
             const items = search.items || [];
             const wanted = (selectedGame.title || selectedGame.name || "").trim().toLowerCase();
@@ -468,7 +505,7 @@ const HomeDashboard = () => {
     }
 
     // Current active game (from the full list)
-    const game = allGames[activeIdx];
+    const game = displayGames[activeIdx] || { title: steamGamesLoading ? "Loading your Steam library…" : "Your Steam games will appear here", name: "", poster: "", accentColor: "#253448", genre: "", fromLibrary: false, appId: null };
 
     return (
         <>
@@ -492,7 +529,7 @@ const HomeDashboard = () => {
                     style={{
                         position: "absolute",
                         inset: 0,
-                        backgroundImage: `url(${game.poster})`,
+                        backgroundImage: game.poster ? `url(${game.poster})` : "none",
                         backgroundSize: "cover",
                         backgroundPosition: "center",
                         zIndex: 0,
@@ -585,7 +622,8 @@ const HomeDashboard = () => {
                     </div>
 
                     {/* ALL game cards — unified loop over allGames */}
-                    {allGames.map((g, i) => (
+                    {!displayGames.length && <div style={{flexShrink:0,width:280,height:70,display:"grid",placeItems:"center",padding:"0 18px",borderRadius:12,background:"rgba(10,15,24,.82)",border:"1px solid rgba(255,255,255,.18)",fontSize:12,color:"#d5dfed"}}>{steamGamesLoading ? "Syncing your real Steam games…" : "No Steam games returned. Check your API key and Steam privacy settings."}</div>}
+                    {displayGames.map((g, i) => (
                         <GameCard
                             key={g.id}
                             game={g}
@@ -702,14 +740,11 @@ const HomeDashboard = () => {
                     <div style={{ display: "flex", flexDirection: "column", gap: "10px", alignItems: "flex-end" }}>
 
                         {/* Friends panel now on the right, above Progress & Trophies */}
-                        <FriendsPanelOverlay />
-
-                        {/* Progress & Trophies */}
-                        <StatsBox game={game} />
+                        <SteamStatsPanel profile={steamProfile} onOpenProfile={() => navigate("/profile")} />
 
                         {/* Game dot indicators — one dot per allGames entry */}
                         <div style={{ display: "flex", gap: "6px", paddingRight: "4px", flexWrap: "wrap", maxWidth: "340px", justifyContent: "flex-end" }}>
-                            {allGames.map((_, i) => (
+                            {displayGames.map((_, i) => (
                                 <button
                                     key={i}
                                     onClick={() => setActiveIdx(i)}
