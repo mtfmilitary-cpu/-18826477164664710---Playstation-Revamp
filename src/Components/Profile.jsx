@@ -25,6 +25,9 @@ export default function Profile() {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState("");
   const [busyPlay, setBusyPlay] = useState(false);
+  const [allAchievements, setAllAchievements] = useState(null);
+  const [achievementsLoading, setAchievementsLoading] = useState(false);
+  const [achievementsError, setAchievementsError] = useState("");
 
   const loadProfile = useCallback(async () => {
     setLoading(true); setError("");
@@ -39,6 +42,19 @@ export default function Profile() {
   }, []);
 
   useEffect(() => { loadProfile(); }, [loadProfile]);
+
+  async function loadAllAchievements() {
+    setAchievementsLoading(true);
+    setAchievementsError("");
+    try {
+      const response = await fetch("/api/v1/profile/achievements/all", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Steam achievements could not be loaded.");
+      setAllAchievements(data);
+    } catch (err) {
+      setAchievementsError(err.message || "Steam achievements could not be loaded.");
+    } finally { setAchievementsLoading(false); }
+  }
 
   async function openGame(game) {
     setSelectedGame(game); setDetails(null); setActionMessage(""); setDetailsLoading(true);
@@ -137,6 +153,34 @@ export default function Profile() {
               ))}
             </section>
 
+            <section style={{ ...panelStyle, padding: 20, marginBottom: 24 }}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
+                <div><h2 style={{margin:"0 0 6px",fontSize:24}}>All available Steam achievements</h2><p style={{margin:0,color:"rgba(230,237,247,.55)",fontSize:13}}>Checks games with recorded playtime and lists every achievement Steam makes available for your account.</p></div>
+                <button className="steam-button" onClick={loadAllAchievements} disabled={achievementsLoading}><Trophy size={16}/>{achievementsLoading ? "Checking games…" : allAchievements ? "Refresh achievements" : "Load all achievements"}</button>
+              </div>
+              {achievementsError && <p className="steam-notice steam-notice-error" role="alert">{achievementsError}</p>}
+              {achievementsLoading && <p className="steam-muted" style={{marginTop:14}}>Checking your played games against Steam. A large library can take a little while.</p>}
+              {allAchievements && <>
+                <div style={{display:"flex",gap:18,flexWrap:"wrap",margin:"18px 0",color:"rgba(230,237,247,.8)",fontSize:13}}>
+                  <span><strong>{prettyNumber(allAchievements.unlocked)}</strong> unlocked</span><span><strong>{prettyNumber(allAchievements.total)}</strong> available achievements</span><span><strong>{prettyNumber(allAchievements.gamesWithAchievements)}</strong> games with achievements</span><span><strong>{prettyNumber(allAchievements.gamesChecked)}</strong> games checked</span>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {allAchievements.games.map((game) => <details key={game.appId} style={{background:"rgba(255,255,255,.035)",border:"1px solid rgba(255,255,255,.09)",borderRadius:9,padding:"11px 13px"}}>
+                    <summary style={{cursor:"pointer",display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+                      <strong style={{flex:1,minWidth:180}}>{game.gameName}</strong><span style={{color:"rgba(230,237,247,.6)",fontSize:12}}>{game.unlocked}/{game.total} · {Math.round(game.unlocked / Math.max(game.total,1) * 100)}%</span>
+                    </summary>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:8,marginTop:12}}>
+                      {game.achievements.map((achievement) => <div key={achievement.apiName} style={{display:"flex",gap:9,padding:10,borderRadius:8,background:"rgba(255,255,255,.035)",opacity:achievement.achieved?1:.68}}>
+                        <Trophy size={17} color={achievement.achieved?"#f0cc6b":"#8b929c"} style={{flexShrink:0,marginTop:2}}/>
+                        <div><strong style={{display:"block",fontSize:12}}>{achievement.name}</strong><span style={{display:"block",fontSize:11,color:"rgba(230,237,247,.6)",lineHeight:1.45,marginTop:3}}>{achievement.description || (achievement.achieved ? "Unlocked" : "Locked")}</span><span style={{fontSize:10,color:achievement.achieved?"#f0cc6b":"#a3aab4"}}>{achievement.achieved ? "Unlocked" : "Locked"}{achievement.unlockTime ? " · " + new Date(achievement.unlockTime * 1000).toLocaleDateString() : ""}</span></div>
+                      </div>)}
+                    </div>
+                  </details>)}
+                </div>
+                {allAchievements.gamesUnavailable?.length > 0 && <p style={{color:"rgba(230,237,247,.48)",fontSize:12,marginTop:14}}>{allAchievements.gamesUnavailable.length} played game(s) did not provide achievement data, usually because the game has no Steam achievements or its stats are private.</p>}
+              </>}
+            </section>
+
             <section>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
                 <h2 style={{ margin: 0, fontSize: 24 }}>Recently played</h2>
@@ -158,7 +202,17 @@ export default function Profile() {
                   ))}
                 </div>
               ) : <div style={{ ...panelStyle, padding: 22, color: "rgba(230,237,247,.65)" }}>No recent games returned by Steam. Your profile may be private, or the API key may not be configured.</div>}
-              {profile.achievementsUnlocked == null && <p style={{ color: "rgba(230,237,247,.45)", fontSize: 12, marginTop: 16 }}>Achievements total is shown as unavailable until it can be calculated from per-game achievement data; no placeholder count is used.</p>}
+              {profile.achievementsUnlocked == null && !allAchievements && <p style={{ color: "rgba(230,237,247,.45)", fontSize: 12, marginTop: 16 }}>Account-wide achievements will be calculated when you load the per-game achievement data above.</p>}
+            </section>
+            <section style={{marginTop:28}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:12,flexWrap:"wrap",marginBottom:14}}><h2 style={{margin:0,fontSize:24}}>All owned games & playtime</h2><span style={{color:"rgba(230,237,247,.48)",fontSize:13}}>{profile.ownedGames?.length ?? 0} games returned by Steam</span></div>
+              {profile.ownedGames?.length ? <div style={{display:"flex",flexDirection:"column",gap:7}}>
+                {profile.ownedGames.map((game) => <div key={game.appId} style={{...panelStyle,display:"flex",alignItems:"center",gap:12,padding:9}}>
+                  <img src={game.cover} alt="" loading="lazy" style={{width:92,height:43,objectFit:"cover",borderRadius:5,background:"#171e2a"}}/>
+                  <div style={{minWidth:0,flex:1}}><strong style={{display:"block",fontSize:13}}>{game.name}</strong><span style={{fontSize:11,color:"rgba(230,237,247,.5)"}}>App ID {game.appId}</span></div>
+                  <div style={{textAlign:"right",whiteSpace:"nowrap"}}><strong style={{fontSize:13}}>{Number(game.hours).toLocaleString()} h</strong><div style={{fontSize:10,color:"rgba(230,237,247,.48)"}}>{Number(game.minutes).toLocaleString()} minutes</div></div>
+                </div>)}
+              </div> : <p className="steam-muted">Steam did not return your owned-game list. Check API access and profile privacy.</p>}
             </section>
           </>
         )}
