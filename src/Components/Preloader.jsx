@@ -1,14 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
-// Keep this filename aligned with the existing Steam Big Picture intro in public/.
-const STARTUP_VIDEOS = ["/bigpicture_startup.webm", "/preloader.mp4"];
+// The original Steam Big Picture video was converted to this MP4 intentionally.
+const STARTUP_VIDEO = "/preloader.mp4";
 const FADE_MS = 700;
 const FALLBACK_MS = 12000;
 
 const Preloader = ({ onComplete }) => {
   const [fading, setFading] = useState(false);
-  const [videoFailed, setVideoFailed] = useState(false);
-  const [videoIndex, setVideoIndex] = useState(0);
   const completedRef = useRef(false);
   const fadeTimerRef = useRef(null);
 
@@ -16,29 +14,16 @@ const Preloader = ({ onComplete }) => {
     if (completedRef.current) return;
     completedRef.current = true;
     setFading(true);
-    fadeTimerRef.current = setTimeout(() => {
-      onComplete?.();
-    }, FADE_MS);
+    fadeTimerRef.current = setTimeout(() => onComplete?.(), FADE_MS);
   }, [onComplete]);
 
   useEffect(() => {
-    const fallback = setTimeout(() => {
-      // Never strand the user on the intro if a codec or video event fails.
-      handleComplete();
-    }, FALLBACK_MS);
-
+    const fallback = setTimeout(handleComplete, FALLBACK_MS);
     return () => {
       clearTimeout(fallback);
       if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
     };
   }, [handleComplete]);
-
-  const handleVideoError = () => {
-    setVideoFailed(true);
-    // Avoid an instant flash to a blank renderer on a missing/unplayable asset.
-    // Allow a brief graceful transition; the app itself remains mounted behind it.
-    setTimeout(handleComplete, 900);
-  };
 
   return (
     <div
@@ -57,21 +42,18 @@ const Preloader = ({ onComplete }) => {
         overflow: "hidden",
       }}
     >
-      {!videoFailed ? (
-        <video
-          autoPlay
-          muted
-          playsInline
-          preload="auto"
-          onEnded={handleComplete}
-          onError={handleVideoError}
-          onAbort={handleVideoError}
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          src={STARTUP_VIDEOS[videoIndex]}
-        />
-      ) : (
-        <div style={{ width: "100%", height: "100%", background: "#070a12" }} />
-      )}
+      <video
+        autoPlay
+        muted
+        playsInline
+        preload="auto"
+        onEnded={handleComplete}
+        onError={handleComplete}
+        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        src={STARTUP_VIDEO}
+      >
+        Your browser does not support the startup video.
+      </video>
     </div>
   );
 };
