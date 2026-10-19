@@ -36,6 +36,7 @@ export default function QuickMenu() {
   const closeMenu = useCallback(() => {
     setOpen(false);
     window.dispatchEvent(new Event("console:sound-quick-close"));
+    if (window.location.pathname === "/overlay") window.consoleBridge?.hideQuickMenu?.().catch(() => {});
   }, []);
 
   const loadProfile = useCallback(async () => {
@@ -69,7 +70,14 @@ export default function QuickMenu() {
   }, []);
 
   useEffect(() => {
-    const toggle = () => { setOpen((value) => { window.dispatchEvent(new Event(value ? "console:sound-quick-close" : "console:sound-quick-open")); return !value; }); setNotice(""); };
+    const toggle = () => {
+      setOpen((value) => {
+        window.dispatchEvent(new Event(value ? "console:sound-quick-close" : "console:sound-quick-open"));
+        if (value && window.location.pathname === "/overlay") window.consoleBridge?.hideQuickMenu?.().catch(() => {});
+        return !value;
+      });
+      setNotice("");
+    };
     window.addEventListener("console:quick-menu-toggle", toggle);
     const unsubscribe = window.consoleBridge?.onQuickMenuToggle?.(() => window.dispatchEvent(new Event("console:quick-menu-toggle")));
     const keydown = (event) => {
@@ -88,7 +96,47 @@ export default function QuickMenu() {
   }, []);
 
   useEffect(() => {
+    if (!open) return undefined;
+    let frameId;
+    let lastMoveAt = 0;
+    const previousButtons = new Map();
+    const loop = (timestamp) => {
+      const pads = navigator.getGamepads?.() || [];
+      const pad = Array.from(pads).find((candidate) => candidate?.connected);
+      if (pad) {
+        const pressed = (index) => Boolean(pad.buttons[index]?.pressed);
+        const rising = (index) => {
+          const key = String(pad.index) + ":" + String(index);
+          const current = pressed(index);
+          const previous = previousButtons.get(key) || false;
+          previousButtons.set(key, current);
+          return current && !previous;
+        };
+        let direction = null;
+        if (rising(12) || (pad.axes[1] < -0.65 && timestamp - lastMoveAt > 180)) direction = "up";
+        else if (rising(13) || (pad.axes[1] > 0.65 && timestamp - lastMoveAt > 180)) direction = "down";
+        else if (rising(14) || (pad.axes[0] < -0.65 && timestamp - lastMoveAt > 180)) direction = "left";
+        else if (rising(15) || (pad.axes[0] > 0.65 && timestamp - lastMoveAt > 180)) direction = "right";
+        if (direction && timestamp - lastMoveAt > 120) {
+          lastMoveAt = timestamp;
+          const currentIndex = Math.max(0, items.findIndex((item) => item.id === selected));
+          const delta = direction === "up" || direction === "left" ? -1 : 1;
+          const nextIndex = (currentIndex + delta + items.length) % items.length;
+          setSelected(items[nextIndex].id);
+          document.querySelectorAll(".quick-menu-item")[nextIndex]?.focus({ preventScroll: true });
+        }
+        if (rising(0)) { const item = items.find((candidate) => candidate.id === selected); if (item) activate(item); }
+        if (rising(1) || rising(8)) closeMenu();
+      }
+      frameId = requestAnimationFrame(loop);
+    };
+    frameId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(frameId);
+  }, [open, selected, closeMenu]);
+  useEffect(() => {
     if (!open) return;
+    const firstItem = document.querySelector(".quick-menu-item");
+    firstItem?.focus({ preventScroll: true });
     loadProfile();
     loadDevices();
     loadParties();
@@ -145,7 +193,11 @@ export default function QuickMenu() {
 
   async function activate(item) {
     setSelected(item.id); setNotice("");
-    if (item.path) { closeMenu(); navigate(item.path); }
+    if (item.path) {
+      closeMenu();
+      if (window.location.pathname === "/overlay" && window.consoleBridge?.openMainRoute) window.consoleBridge.openMainRoute(item.path).catch(() => {});
+      else navigate(item.path);
+    }
     else if (item.id === "friends") loadProfile();
     else if (item.id === "sound") loadDevices();
     else if (item.id === "party") loadParties();
