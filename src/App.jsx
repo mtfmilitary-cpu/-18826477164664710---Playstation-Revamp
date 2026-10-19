@@ -20,6 +20,7 @@ import Preloader from "./Components/Preloader";
 import SteamStorePage from "./Components/SteamStorePage";
 import SteamLibraryPage from "./Components/SteamLibraryPage";
 import ConsoleSettingsPage from "./Components/ConsoleSettingsPage";
+import QuickMenu from "./Components/QuickMenu";
 
 function RouteDiagnostics() {
   const location = useLocation();
@@ -39,15 +40,27 @@ function RouteDiagnostics() {
 }
 
 function App() {
-  const [loading, setLoading] = useState(true);
+  const isOverlayWindow = window.location.pathname === "/overlay";
+  const [loading, setLoading] = useState(!isOverlayWindow);
+
+  useEffect(() => {
+    if (!isOverlayWindow) return undefined;
+    document.documentElement.classList.add("quick-overlay-window");
+    document.body.classList.add("quick-overlay-window");
+    return () => {
+      document.documentElement.classList.remove("quick-overlay-window");
+      document.body.classList.remove("quick-overlay-window");
+    };
+  }, [isOverlayWindow]);
 
   return (
     <>
       {loading && <Preloader onComplete={() => setLoading(false)} />}
       <Router>
         <RouteDiagnostics />
-        <VirtualCursor />
+        {!isOverlayWindow && <VirtualCursor />}
         <Routes>
+          <Route path="/overlay" element={<QuickMenu />} />
           <Route element={<Layout />}>
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="/home" element={<HomeDashboard />} />
