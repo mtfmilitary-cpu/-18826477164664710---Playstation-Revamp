@@ -269,7 +269,13 @@ export default function ControllerNavigationProvider({ children }) {
                         lastDirectionAt = timestamp;
                         processDirection(direction);
                     }
-                    if (rising(0) && focusedRef.current && isActiveRef.current) focusedRef.current.click();
+                    if (rising(0)) {
+                        if (focusedRef.current && isActiveRef.current) focusedRef.current.click();
+                        else {
+                            const first = findNearest(null, "down");
+                            if (first) setFocus(first);
+                        }
+                    }
                     if (rising(1) && location.pathname !== "/home") navigate(-1);
                 }
             }
@@ -277,7 +283,7 @@ export default function ControllerNavigationProvider({ children }) {
         };
         frameId = requestAnimationFrame(poll);
         return () => cancelAnimationFrame(frameId);
-    }, [processDirection, navigate, location.pathname]);
+    }, [processDirection, navigate, location.pathname, findNearest, setFocus]);
 
     // ── Keyboard fallback (testing without a controller) ────────────
 
