@@ -274,6 +274,36 @@ app.get('/api/v1/profile/me', async (_req, res) => {
   }
 });
 
+// Per-game achievement data comes from Steam's official user-stats endpoint.
+app.get('/api/v1/profile/achievements/:appId', async (req, res) => {
+  const appId = String(req.params.appId || '');
+  if (!/^\d+$/.test(appId)) return res.status(400).json({ error: 'A valid Steam App ID is required.' });
+  const account = getLocalSteamAccount();
+  if (!account?.steamId) return res.status(400).json({ error: 'Sign in to Steam on this PC or configure STEAM_ID64 first.' });
+  try {
+    const payload = await steamWebApi('ISteamUserStats', 'GetPlayerAchievements', {
+      steamid: account.steamId, appid: appId, l: 'english',
+    });
+    const response = payload.playerstats;
+    if (!response?.success) return res.status(404).json({ error: response?.error || 'Steam achievement data is unavailable for this game.' });
+    const achievements = (response.achievements || []).map((achievement) => ({
+      apiName: achievement.apiname,
+      name: achievement.name || achievement.apiname,
+      description: achievement.description || '',
+      achieved: Number(achievement.achieved) === 1,
+      unlockTime: Number(achievement.unlocktime || 0) || null,
+    }));
+    res.json({
+      appId, gameName: response.gameName || null,
+      total: achievements.length,
+      unlocked: achievements.filter((achievement) => achievement.achieved).length,
+      achievements,
+    });
+  } catch (error) {
+    res.status(502).json({ error: error.message || 'Steam achievement data is temporarily unavailable.' });
+  }
+});
+
 // Installed games are discovered from local Steam appmanifest files; no login
 // or Steam credentials are requested or stored.
 app.get('/api/v1/library/installed', (_req, res) => {
