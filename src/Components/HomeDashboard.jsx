@@ -412,6 +412,7 @@ const HomeDashboard = () => {
     // Navigation logic for D-Pad — cycles through allGames
     useEffect(() => {
         if (!action) return;
+        if (!displayGames.length && focusZone === "GAMES" && (action === "DPAD_LEFT" || action === "DPAD_RIGHT")) return;
 
         if (focusZone === "GAMES") {
             if (action === "DPAD_LEFT") {
@@ -446,7 +447,7 @@ const HomeDashboard = () => {
                 setFocusZone("GAMES");
             }
         }
-    }, [action, focusZone, navIdx, quickIdx]);
+    }, [action, focusZone, navIdx, quickIdx, displayGames.length]);
 
     // Auto-rotate only when real Steam games are available.
     useEffect(() => {
