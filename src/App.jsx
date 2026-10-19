@@ -1,10 +1,11 @@
 import "./App.css";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
+  useLocation,
 } from "react-router-dom";
 import HomeDashboard from "./Components/HomeDashboard";
 import FriendsPage from "./Components/FriendsPage";
@@ -20,6 +21,23 @@ import SteamStorePage from "./Components/SteamStorePage";
 import SteamLibraryPage from "./Components/SteamLibraryPage";
 import ConsoleSettingsPage from "./Components/ConsoleSettingsPage";
 
+function RouteDiagnostics() {
+  const location = useLocation();
+
+  useEffect(() => {
+    const bridge = window.consoleBridge;
+    if (typeof bridge?.reportDiagnostic !== "function") return;
+    bridge.reportDiagnostic({
+      code: "RENDERER-NAV-0001",
+      message: "Console route changed.",
+      name: "Navigation",
+      detail: location.pathname,
+    }).catch(() => {});
+  }, [location.pathname]);
+
+  return null;
+}
+
 function App() {
   const [loading, setLoading] = useState(true);
 
@@ -27,6 +45,7 @@ function App() {
     <>
       {loading && <Preloader onComplete={() => setLoading(false)} />}
       <Router>
+        <RouteDiagnostics />
         <VirtualCursor />
         <Routes>
           <Route element={<Layout />}>
