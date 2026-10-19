@@ -14,7 +14,9 @@ import { diagnostic } from './server/diagnostics.js';
 // Existing process environment variables take precedence over values in .env.
 const envFilePath = path.join(path.dirname(fileURLToPath(import.meta.url)), '.env');
 try {
+  diagnostic('FILE-ACCESS-0000', 'Reading project environment configuration.', null, 'INFO', { file: '.env' });
   const envText = fs.readFileSync(envFilePath, 'utf8');
+  diagnostic('ENV-0000', 'Project environment configuration file was read.', null, 'INFO', { file: '.env' });
   for (const line of envText.split(/\r?\n/)) {
     const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
     if (!match || Object.hasOwn(process.env, match[1])) continue;
@@ -27,7 +29,10 @@ try {
     process.env[match[1]] = value;
   }
 } catch (error) {
-  if (error.code !== 'ENOENT') diagnostic('ENV-0001', 'Could not read the project .env file.', error);
+  diagnostic(error.code === 'ENOENT' ? 'ENV-0002' : 'ENV-0001',
+    error.code === 'ENOENT' ? 'Optional project .env file was not found.' : 'Could not read the project .env file.',
+    null, error.code === 'ENOENT' ? 'INFO' : 'WARN',
+    { file: '.env', code: /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || '')) ? String(error.code) : 'ENV_READ_FAILED' });
 }
 
 const __filename = fileURLToPath(import.meta.url);
@@ -205,8 +210,36 @@ async function steamWebApi(interfaceName, methodName, params = {}) {
   const url = new URL(`https://api.steampowered.com/${interfaceName}/${methodName}/v1/`);
   url.searchParams.set('key', key);
   for (const [name, value] of Object.entries(params)) url.searchParams.set(name, String(value));
-  const response = await fetch(url, { signal: AbortSignal.timeout(12000) });
-  if (!response.ok) throw Object.assign(new Error(`Steam Web API returned HTTP ${response.status}`), { code: `STEAM_HTTP_${response.status}` });
+  const startedAt = Date.now();
+  diagnostic('STEAM-API-0000', 'Steam Web API request started.', null, 'INFO', {
+    interface: interfaceName, method: methodName,
+  });
+  let response;
+  try {
+    response = await fetch(url, { signal: AbortSignal.timeout(12000) });
+  } catch (error) {
+    diagnostic('STEAM-API-0005', 'Steam Web API request failed before receiving a response.', null, 'WARN', {
+      interface: interfaceName, method: methodName,
+      code: /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || '')) ? String(error.code) : 'NETWORK_OR_TIMEOUT',
+      durationMs: Date.now() - startedAt,
+    });
+    throw Object.assign(new Error('Steam Web API network request failed.'), {
+      code: /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || '')) ? String(error.code) : 'STEAM_NETWORK_ERROR',
+    });
+  }
+  if (!response.ok) {
+    diagnostic('STEAM-API-0006', 'Steam Web API returned a non-success status.', null, 'WARN', {
+      interface: interfaceName, method: methodName, status: response.status,
+      durationMs: Date.now() - startedAt,
+    });
+    throw Object.assign(new Error(`Steam Web API returned HTTP ${response.status}`), {
+      code: `STEAM_HTTP_${response.status}`, status: response.status,
+    });
+  }
+  diagnostic('STEAM-API-0007', 'Steam Web API response received.', null, 'INFO', {
+    interface: interfaceName, method: methodName, status: response.status,
+    durationMs: Date.now() - startedAt,
+  });
   return response.json();
 }
 
@@ -576,6 +609,13 @@ server.on('upgrade', (request, socket, head) => {
 });
 
 wss.on('connection', (ws) => {
+  diagnostic('WS-0001', 'WebSocket connection opened.', null, 'INFO', { mode: ws.mode || 'unknown' });
+  ws.on('error', (error) => {
+    diagnostic('WS-0002', 'WebSocket connection error.', null, 'WARN', {
+      mode: ws.mode || 'unknown',
+      code: /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || '')) ? String(error.code) : 'WEBSOCKET_ERROR',
+    });
+  });
   ws.on('message', (rawMessage) => {
     let message;
     try { message = JSON.parse(rawMessage.toString()); } catch { return; }
@@ -590,6 +630,7 @@ wss.on('connection', (ws) => {
     }
 
     if (message.type === 'join') {
+      diagnostic('PARTY-WS-0001', 'Party voice signaling join received.', null, 'INFO');
       const partyId = String(message.partyId || '').slice(0, 80);
       const peerId = String(message.peerId || '').slice(0, 100);
       const username = String(message.username || 'Party member').trim().slice(0, 32);
@@ -623,6 +664,7 @@ wss.on('connection', (ws) => {
 
     if (!ws.partyId || !ws.peerId) return;
     if (['offer', 'answer', 'ice'].includes(message.type)) {
+      diagnostic('PARTY-WS-0002', 'Party voice signaling message routed.', null, 'INFO', { type: message.type });
       const targetId = String(message.to || '');
       const target = partySignalingPeers.get(ws.partyId)?.get(targetId);
       if (target && target !== ws && target.readyState === 1) {
@@ -640,7 +682,8 @@ wss.on('connection', (ws) => {
     }
   });
 
-  ws.on('close', () => {
+  ws.on('close', (code) => {
+    diagnostic('WS-0003', 'WebSocket connection closed.', null, 'INFO', { mode: ws.mode || 'unknown', code });
     if (ws.mode !== 'party' || !ws.partyId || !ws.peerId) return;
     const roomPeers = partySignalingPeers.get(ws.partyId);
     if (roomPeers?.get(ws.peerId) === ws) roomPeers.delete(ws.peerId);
@@ -649,6 +692,16 @@ wss.on('connection', (ws) => {
     });
     if (roomPeers?.size === 0) partySignalingPeers.delete(ws.partyId);
   });
+});
+
+app.use((error, req, res, _next) => {
+  diagnostic('HTTP-ERROR-0001', 'Unhandled backend route error.', null, 'ERROR', {
+    method: req.method,
+    route: String(req.path || '/').slice(0, 180),
+    code: /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || '')) ? String(error.code) : 'ROUTE_ERROR',
+  });
+  if (res.headersSent) return;
+  res.status(500).json({ error: 'An unexpected backend error occurred.' });
 });
 
 app.get('/{*splat}', (req, res, next) => {
