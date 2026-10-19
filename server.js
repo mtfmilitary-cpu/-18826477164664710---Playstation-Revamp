@@ -190,6 +190,9 @@ function getLocalSteamAccount() {
   }
   for (const root of candidates) {
     try {
+      diagnostic('FILE-ACCESS-0008', 'Reading Steam login account configuration.', null, 'INFO', {
+        file: 'config/loginusers.vdf',
+      });
       const raw = fs.readFileSync(path.join(root, 'config', 'loginusers.vdf'), 'utf8');
       const entries = [...raw.matchAll(/"([0-9]{17})"\s*\{([^{}]*)\}/g)].map((match) => {
         const body = match[2];
@@ -197,8 +200,17 @@ function getLocalSteamAccount() {
         return { steamId: match[1], accountName: field('AccountName'), personaName: field('PersonaName'), mostRecent: field('MostRecent') === '1' };
       });
       const account = entries.find((entry) => entry.mostRecent) || entries[0];
-      if (account) return { ...account, steamId: process.env.STEAM_ID64 || account.steamId };
-    } catch {}
+      if (account) {
+        diagnostic('STEAM-ACCOUNT-0001', 'Local Steam account was identified.', null, 'INFO');
+        return { ...account, steamId: process.env.STEAM_ID64 || account.steamId };
+      }
+      diagnostic('STEAM-ACCOUNT-0002', 'Steam login configuration contained no account entries.', null, 'WARN');
+    } catch (error) {
+      diagnostic('FILE-ACCESS-0009', 'Steam login account configuration could not be read.', null, 'WARN', {
+        file: 'config/loginusers.vdf',
+        code: /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || '')) ? String(error.code) : 'STEAM_ACCOUNT_FILE_READ_FAILED',
+      });
+    }
   }
   if (/^[0-9]{17}$/.test(process.env.STEAM_ID64 || '')) return { steamId: process.env.STEAM_ID64, personaName: '', accountName: '', mostRecent: true };
   return null;
@@ -618,7 +630,14 @@ wss.on('connection', (ws) => {
   });
   ws.on('message', (rawMessage) => {
     let message;
-    try { message = JSON.parse(rawMessage.toString()); } catch { return; }
+    try { message = JSON.parse(rawMessage.toString()); } catch {
+      diagnostic('WS-MESSAGE-0002', 'WebSocket received invalid JSON.', null, 'WARN', { mode: ws.mode || 'unknown' });
+      return;
+    }
+    diagnostic('WS-MESSAGE-0001', 'WebSocket message received.', null, 'INFO', {
+      mode: ws.mode || 'unknown',
+      type: typeof message?.type === 'string' ? message.type.slice(0, 40) : 'untyped',
+    });
 
     if (ws.mode !== 'party') {
       wss.clients.forEach((client) => {
