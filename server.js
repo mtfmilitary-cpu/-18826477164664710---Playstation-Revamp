@@ -35,6 +35,12 @@ try {
     { file: '.env', code: /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || '')) ? String(error.code) : 'ENV_READ_FAILED' });
 }
 
+diagnostic('STEAM-CONFIG-0001', 'Steam integration configuration checked.', null, 'INFO', {
+  webApiKeyConfigured: Boolean(process.env.STEAM_WEB_API_KEY),
+  steamIdConfigured: /^[0-9]{17}$/.test(process.env.STEAM_ID64 || ''),
+  steamPathConfigured: Boolean(process.env.STEAM_PATH),
+});
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
