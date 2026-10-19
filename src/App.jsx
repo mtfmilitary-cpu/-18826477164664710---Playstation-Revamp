@@ -39,6 +39,15 @@ function RouteDiagnostics() {
   return null;
 }
 
+function MainRouteBridge() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const unsubscribe = window.consoleBridge?.onNavigate?.((route) => navigate(route));
+    return () => unsubscribe?.();
+  }, [navigate]);
+  return null;
+}
+
 function App() {
   const isOverlayWindow = window.location.pathname === "/overlay";
   const [loading, setLoading] = useState(!isOverlayWindow);
@@ -58,6 +67,7 @@ function App() {
       {loading && <Preloader onComplete={() => setLoading(false)} />}
       <Router>
         <RouteDiagnostics />
+        <MainRouteBridge />
         {!isOverlayWindow && <VirtualCursor />}
         <Routes>
           <Route path="/overlay" element={<QuickMenu />} />
