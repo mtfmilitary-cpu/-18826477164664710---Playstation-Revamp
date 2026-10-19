@@ -123,6 +123,15 @@ export default function ConsoleSounds() {
       lastHoverRef.current = element;
       play("hover");
     };
+    const onKeyDown = (event) => {
+      if (event.repeat) return;
+      const element = interactiveFrom(event.target);
+      if (!element) return;
+      if (["Enter", " ", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
+        if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) play("hover");
+        else if (event.key === "Enter" || event.key === " ") play("select");
+      }
+    };
     const onClick = (event) => {
       if (interactiveFrom(event.target)) play("select");
     };
@@ -150,11 +159,13 @@ export default function ConsoleSounds() {
     document.addEventListener("pointerover", onPointerOver, true);
     document.addEventListener("pointerout", onPointerOut, true);
     document.addEventListener("focusin", onFocus, true);
+    document.addEventListener("keydown", onKeyDown, true);
     document.addEventListener("click", onClick, true);
     return () => {
       document.removeEventListener("pointerover", onPointerOver, true);
       document.removeEventListener("pointerout", onPointerOut, true);
       document.removeEventListener("focusin", onFocus, true);
+      document.removeEventListener("keydown", onKeyDown, true);
       document.removeEventListener("click", onClick, true);
       listeners.forEach(([eventName, listener]) => window.removeEventListener(eventName, listener));
     };
