@@ -68,6 +68,13 @@ app.use((req, res, next) => {
       { method: req.method, route, status, durationMs: Date.now() - startedAt }
     );
   });
+  res.on('close', () => {
+    if (!res.writableFinished) {
+      diagnostic('HTTP-REQUEST-0005', 'HTTP connection closed before the response finished.', null, 'WARN', {
+        method: req.method, route, durationMs: Date.now() - startedAt,
+      });
+    }
+  });
   next();
 });
 
