@@ -156,8 +156,11 @@ function toggleQuickMenuOverlay() {
   }
   if (quickMenuWindow.isVisible()) { quickMenuWindow.webContents.send("console:quick-menu-toggle"); return; }
   quickMenuWindow.show(); quickMenuWindow.focus();
-  setTimeout(() => { moveCursorToQuickMenu(); }, 75);
-  quickMenuWindow.webContents.send("console:quick-menu-toggle");
+  setTimeout(() => {
+    if (!quickMenuWindow || quickMenuWindow.isDestroyed() || !quickMenuWindow.isVisible()) return;
+    moveCursorToQuickMenu();
+    quickMenuWindow.webContents.send("console:quick-menu-toggle");
+  }, 75);
 }
 
 app.whenReady().then(async () => {
