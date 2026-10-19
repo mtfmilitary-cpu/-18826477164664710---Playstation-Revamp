@@ -694,6 +694,13 @@ wss.on('connection', (ws) => {
   });
 });
 
+app.get('/{*splat}', (req, res, next) => {
+  if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API route not found.' });
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'), (error) => {
+    if (error) next(error);
+  });
+});
+
 app.use((error, req, res, _next) => {
   diagnostic('HTTP-ERROR-0001', 'Unhandled backend route error.', null, 'ERROR', {
     method: req.method,
@@ -702,13 +709,6 @@ app.use((error, req, res, _next) => {
   });
   if (res.headersSent) return;
   res.status(500).json({ error: 'An unexpected backend error occurred.' });
-});
-
-app.get('/{*splat}', (req, res, next) => {
-  if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API route not found.' });
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'), (error) => {
-    if (error) next(error);
-  });
 });
 
 export function startServer(port = PORT, host = '127.0.0.1') {
