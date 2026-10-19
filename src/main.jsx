@@ -97,7 +97,7 @@ try {
     </StrictMode>,
   )
   reportDiagnostic({
-    code: 'RENDERER-BOOT-0001',
+    code: 'RENDERER-BOOT-0003',
     message: 'Renderer boot completed.',
     name: 'Startup',
     detail: 'React root mounted.',
