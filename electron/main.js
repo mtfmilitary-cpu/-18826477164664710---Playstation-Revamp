@@ -274,8 +274,7 @@ ipcMain.handle("console:install-controller-stack", async (event) => {
   for (const file of [progressPath, resultPath]) { try { fs.unlinkSync(file); } catch {} }
   const sendProgress = (progress) => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("console:controller-setup-progress", progress); };
   sendProgress({ stage: "approval", title: "Waiting for administrator approval", message: "Approve the Windows UAC prompt to continue installing the driver.", kind: "info" });
-  const argLine = "-NoProfile -ExecutionPolicy Bypass -File \"" + scriptPath + "\" -ProgressPath \"" + progressPath + "\" -ResultPath \"" + resultPath + "\"";
-  const parentCommand = "$p = Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList '" + argLine.replace(/'/g, "''") + "' -Wait -PassThru; exit $p.ExitCode";
+  const installArgs = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptPath, "-ProgressPath", progressPath, "-ResultPath", resultPath];
   let lastProgress = "";
   const poller = setInterval(() => {
     try {
@@ -285,7 +284,7 @@ ipcMain.handle("console:install-controller-stack", async (event) => {
     } catch {}
   }, 500);
   try {
-    await execFileAsync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", parentCommand], { windowsHide: true, timeout: 15 * 60 * 1000, maxBuffer: 1024 * 1024 });
+    await execFileAsync("powershell.exe", installArgs, { windowsHide: true, timeout: 15 * 60 * 1000, maxBuffer: 1024 * 1024 });
     let result = {};
     try { result = JSON.parse(fs.readFileSync(resultPath, "utf8")); } catch {}
     if (!result.success) throw new Error(result.error || "The installer finished without a successful validation result.");
@@ -296,7 +295,7 @@ ipcMain.handle("console:install-controller-stack", async (event) => {
     let result = {};
     try { result = JSON.parse(fs.readFileSync(resultPath, "utf8")); } catch {}
     const message = result.error || "Controller setup was cancelled, failed, or interrupted. If you cancelled the Windows administrator prompt, no installation was authorized.";
-    sendProgress({ stage: "failed", title: "Controller setup did not finish", message, kind: "error" });
+    sendProgress({ stage: result.cancelled ? "cancelled" : "failed", title: result.cancelled ? "Installation cancelled" : "Controller setup did not finish", message, kind: result.cancelled ? "info" : "error" });
     diagnostic("CONTROLLER-SETUP-0003", "DS4Windows and ViGEmBus setup did not complete successfully.", error, "WARN");
     throw new Error(message);
   } finally { clearInterval(poller); }
