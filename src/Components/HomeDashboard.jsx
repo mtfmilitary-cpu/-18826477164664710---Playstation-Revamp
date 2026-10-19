@@ -36,6 +36,49 @@ const SteamStatsPanel = ({ profile, onOpenProfile }) => (
     </div>
 );
 
+const GameCard = ({ game, isActive, onClick }) => (
+    <motion.button
+        type="button"
+        onClick={onClick}
+        data-focusable
+        aria-label={game?.title || game?.name || "Steam game"}
+        aria-pressed={Boolean(isActive)}
+        whileHover={{ y: -4, scale: 1.025 }}
+        whileTap={{ scale: 0.98 }}
+        style={{
+            position: "relative",
+            flex: "0 0 auto",
+            width: isActive ? 156 : 112,
+            height: isActive ? 88 : 70,
+            overflow: "hidden",
+            padding: 0,
+            borderRadius: 12,
+            border: isActive ? "2px solid rgba(255,255,255,.92)" : "2px solid rgba(255,255,255,.18)",
+            background: game?.poster || game?.cover
+                ? `linear-gradient(to top, rgba(4,8,16,.9), rgba(4,8,16,.05)), url("${game.poster || game.cover}") center / cover`
+                : "linear-gradient(135deg, #17243a, #304766)",
+            boxShadow: isActive ? "0 8px 26px rgba(0,0,0,.42)" : "0 3px 12px rgba(0,0,0,.28)",
+            color: "#fff",
+            cursor: "pointer",
+            textAlign: "left",
+            transition: "width .2s ease, height .2s ease, border-color .2s ease",
+        }}
+    >
+        <span style={{
+            position: "absolute",
+            left: 9,
+            right: 9,
+            bottom: 8,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            fontSize: isActive ? 11 : 9,
+            fontWeight: 750,
+            textShadow: "0 1px 4px rgba(0,0,0,.8)",
+        }}>{game?.title || game?.name || "Untitled game"}</span>
+    </motion.button>
+);
+
 /* ─────────────────────────────────────────────────────────────
    MAIN HOME DASHBOARD
 ───────────────────────────────────────────────────────────── */
