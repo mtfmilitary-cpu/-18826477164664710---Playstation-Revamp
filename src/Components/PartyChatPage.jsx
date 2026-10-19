@@ -16,6 +16,7 @@ export default function PartyChatPage() {
   const [parties, setParties] = useState([]);
   const [party, setParty] = useState(null);
   const [invite, setInvite] = useState("");
+  const [messageDraft, setMessageDraft] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -76,6 +77,23 @@ export default function PartyChatPage() {
     } catch (err) { setError(err.message); }
   }
 
+  async function sendPartyMessage(event) {
+    event.preventDefault();
+    const text = messageDraft.trim();
+    if (!party?.id || !text) return;
+    setBusy(true);
+    setError("");
+    try {
+      const data = await request(`${API}/${encodeURIComponent(party.id)}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ username, text }),
+      });
+      setParty(data.party);
+      setMessageDraft("");
+    } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  }
+
   async function leaveParty() {
     if (!party) return;
     try { await request(`${API}/${encodeURIComponent(party.id)}/leave`, { method: "POST", body: JSON.stringify({ username }) }); }
@@ -91,7 +109,7 @@ export default function PartyChatPage() {
   }
 
   return <main className="social-page party-page">
-    <header className="social-heading"><div><p className="social-eyebrow">PLAY TOGETHER</p><h1>Party Chat</h1><p>Create a private-feeling room, invite friends, and message everyone in the party.</p></div><span className="social-count"><Headphones size={18}/> Party system</span></header>
+    <header className="social-heading"><div><p className="social-eyebrow">PLAY TOGETHER</p><h1>Party Chat</h1><p>Create a party, message members, and start optional peer-to-peer voice chat.</p></div><span className="social-count"><Headphones size={18}/> Party system</span></header>
     <div className="party-layout">
       <aside className="party-sidebar">
         <form className="party-username" onSubmit={saveUsername}><label htmlFor="party-username">Your console name</label><div><input id="party-username" value={nameDraft} onChange={e => setNameDraft(e.target.value)} maxLength={32}/><button className="social-primary" type="submit">Save</button></div></form>
@@ -104,11 +122,24 @@ export default function PartyChatPage() {
           <div className="party-room-header"><div><p className="social-eyebrow">ACTIVE PARTY</p><h2>{party.name}</h2><p>Hosted by {party.host} · {party.members.length} member{party.members.length === 1 ? "" : "s"}</p></div><button className="social-secondary" onClick={leaveParty}><LogOut size={16}/> Leave</button></div>
           <div className="party-members"><strong><Users size={15}/> Members</strong>{party.members.map((member, index) => <span key={member} className="party-member-pill"><i/>{member}{index === 0 ? " · Host" : ""}</span>)}{party.invites?.map(person => <span key={person} className="party-member-pill invited">{person} · invited</span>)}</div>
           <form className="party-invite-form" onSubmit={sendInvite}><input value={invite} onChange={e => setInvite(e.target.value)} placeholder="Friend's username to invite" maxLength={32}/><button className="social-secondary" disabled={!invite.trim()}>Invite</button></form>
+          <section className="party-server-chat">
+            <header><MessageCircle size={16}/><strong>Party messages</strong><span>{(party.messages || []).length} messages</span></header>
+            <div className="peer-chat-messages party-server-message-list" aria-live="polite">
+              {(party.messages || []).map(message => <article key={message.id} className={message.username === username ? "peer-chat-message own" : "peer-chat-message"}>
+                <div><strong>{message.username}</strong><small>{new Date(message.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small></div>
+                <p>{message.text}</p>
+              </article>)}
+            </div>
+            <form className="peer-chat-form" onSubmit={sendPartyMessage}>
+              <input value={messageDraft} onChange={event => setMessageDraft(event.target.value)} placeholder="Message everyone in the party…" maxLength={1000} disabled={busy}/>
+              <button className="social-primary" type="submit" disabled={busy || !messageDraft.trim()}>Send</button>
+            </form>
+          </section>
           <PeerCallPanel party={party} username={username} />
          </>}
       </section>
     </div>
     {error && <p className="social-error" role="alert">{error}</p>}
-    <p className="social-note">Party room invitations and membership are coordinated by the console backend. Voice and P2P chat travel directly between peers after connection. This development build’s signaling server listens on this PC only; internet play needs a public HTTPS/WSS signaling endpoint and a TURN relay for restrictive networks.</p>
+    <p className="social-note">Party membership and text messages are shared by this console's backend. Voice uses peer-to-peer WebRTC; internet voice sessions may need a public signaling server and TURN relay. This development build’s signaling server listens on this PC only; internet play needs a public HTTPS/WSS signaling endpoint and a TURN relay for restrictive networks.</p>
   </main>;
 }
