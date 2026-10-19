@@ -241,7 +241,20 @@ app.get('/api/v1/profile/me', async (_req, res) => {
         }));
       } catch {}
     }
-    const totalMinutes = ownedGames.reduce((sum, game) => sum + Number(game.playtime_forever || 0), 0);
+    const totalMinutes = ownedGames.reduce((sum, game) => sum + Math.max(0, Number(game.playtime_forever || 0)), 0);
+    const normalizedOwnedGames = ownedGames
+      .map((game) => ({
+        appId: String(game.appid),
+        name: game.name || `Steam game ${game.appid}`,
+        minutes: Math.max(0, Number(game.playtime_forever || 0)),
+        hours: Math.round(Math.max(0, Number(game.playtime_forever || 0)) / 60),
+        recentMinutes: Math.max(0, Number(game.playtime_2weeks || 0)),
+        recentHours: Math.round(Math.max(0, Number(game.playtime_2weeks || 0)) / 60),
+        cover: `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.appid}/header.jpg`,
+        hero: `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.appid}/library_hero.jpg`,
+        steamUrl: `https://store.steampowered.com/app/${game.appid}/`,
+      }))
+      .sort((a, b) => b.minutes - a.minutes);
     Object.assign(base, {
       personaName: player.personaname || base.personaName,
       avatar: player.avatarfull || player.avatarmedium || null,
@@ -249,6 +262,8 @@ app.get('/api/v1/profile/me', async (_req, res) => {
       memberSince: player.timecreated ? new Date(Number(player.timecreated) * 1000).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : null,
       games: gamesPayload ? (gamesPayload.response?.game_count ?? ownedGames.length) : null,
       totalHours: gamesPayload ? Math.round(totalMinutes / 60) : null,
+      totalPlaytimeMinutes: gamesPayload ? totalMinutes : null,
+      ownedGames: gamesPayload ? normalizedOwnedGames : null,
       friends: friendsPayload ? friends.length : null,
       steamFriends: friendsPayload ? steamFriends : null,
       level: levelPayload?.response?.player_level ?? null,
@@ -271,6 +286,71 @@ app.get('/api/v1/profile/me', async (_req, res) => {
   } catch (error) {
     base.statsUnavailableReason = error.message || 'Steam account statistics could not be loaded.';
     res.json(base);
+  }
+});
+
+
+// Load all available achievement records for games with recorded playtime.
+// The client calls this only on demand; unavailable/private game stats are skipped and reported.
+const allAchievementCache = new Map();
+app.get('/api/v1/profile/achievements/all', async (_req, res) => {
+  const account = getLocalSteamAccount();
+  if (!account?.steamId) return res.status(400).json({ error: 'Sign in to Steam on this PC or configure STEAM_ID64 first.' });
+  const cached = allAchievementCache.get(account.steamId);
+  if (cached && Date.now() - cached.at < 10 * 60 * 1000) return res.json(cached.data);
+  try {
+    const gamesPayload = await steamWebApi('IPlayerService', 'GetOwnedGames', {
+      steamid: account.steamId, include_appinfo: 1, include_played_free_games: 1,
+    });
+    const games = (gamesPayload.response?.games || []).filter((game) => Number(game.playtime_forever || 0) > 0);
+    const achievementGames = [];
+    const unavailableGames = [];
+    // Keep concurrency low to avoid flooding Steam's Web API.
+    for (let index = 0; index < games.length; index += 3) {
+      const batch = games.slice(index, index + 3);
+      const results = await Promise.allSettled(batch.map(async (game) => {
+        const payload = await steamWebApi('ISteamUserStats', 'GetPlayerAchievements', {
+          steamid: account.steamId, appid: String(game.appid), l: 'english',
+        });
+        const stats = payload.playerstats;
+        if (!stats?.success) throw new Error(stats?.error || 'Achievement data unavailable');
+        const achievements = (stats.achievements || []).map((item) => ({
+          apiName: item.apiname,
+          name: item.name || item.apiname,
+          description: item.description || '',
+          achieved: Number(item.achieved) === 1,
+          unlockTime: Number(item.unlocktime || 0) || null,
+        }));
+        return {
+          appId: String(game.appid),
+          gameName: game.name || stats.gameName || `Steam game ${game.appid}`,
+          hours: Math.round(Number(game.playtime_forever || 0) / 60),
+          total: achievements.length,
+          unlocked: achievements.filter((item) => item.achieved).length,
+          achievements,
+        };
+      }));
+      results.forEach((result, offset) => {
+        if (result.status === 'fulfilled') {
+          if (result.value.total > 0) achievementGames.push(result.value);
+        } else {
+          unavailableGames.push({ appId: String(batch[offset].appid), gameName: batch[offset].name || `Steam game ${batch[offset].appid}` });
+        }
+      });
+    }
+    achievementGames.sort((a, b) => a.gameName.localeCompare(b.gameName));
+    const data = {
+      gamesChecked: games.length,
+      gamesWithAchievements: achievementGames.length,
+      gamesUnavailable: unavailableGames,
+      total: achievementGames.reduce((sum, game) => sum + game.total, 0),
+      unlocked: achievementGames.reduce((sum, game) => sum + game.unlocked, 0),
+      games: achievementGames,
+    };
+    allAchievementCache.set(account.steamId, { at: Date.now(), data });
+    res.json(data);
+  } catch (error) {
+    res.status(502).json({ error: error.message || 'Steam achievements could not be loaded.' });
   }
 });
 
