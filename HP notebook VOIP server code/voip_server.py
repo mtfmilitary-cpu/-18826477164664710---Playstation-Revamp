@@ -37,8 +37,11 @@ def packet(data):
     return json.dumps(data, separators=(",", ":"))
 
 async def send(ws, data):
-    if not ws.closed:
+    try:
         await ws.send(packet(data))
+    except Exception:
+        # A peer may disconnect between room lookup and send.
+        return
 
 async def handler(ws):
     party_id = peer_id = username = None
