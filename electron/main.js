@@ -4,11 +4,32 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import fs from "node:fs";
 import { startServer } from "../server.js";
 import { diagnostic, diagnosticLogPath } from "../server/diagnostics.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let mainWindow;
+
+const projectRoot = path.resolve(__dirname, '..');
+const startupFiles = [
+  'package.json',
+  'server.js',
+  'server/diagnostics.js',
+  'electron/preload.cjs',
+  'src/main.jsx',
+  'public/preloader.mp4',
+];
+for (const relativePath of startupFiles) {
+  const exists = fs.existsSync(path.join(projectRoot, relativePath));
+  diagnostic(
+    exists ? 'FILE-CHECK-0001' : 'FILE-CHECK-0002',
+    exists ? 'Required project file is present.' : 'Expected project file was not found.',
+    null,
+    exists ? 'INFO' : 'ERROR',
+    { file: relativePath, exists }
+  );
+}
 
 function isTrustedLocalUrl(value) {
   try {
@@ -177,6 +198,11 @@ ipcMain.handle("console:power-action", async (_event, action) => {
 
 app.on("before-quit", () => {
   diagnostic("ELECTRON-LIFECYCLE-0001", "Electron application shutdown requested.", null, "INFO");
+});
+process.on("exit", (code) => {
+  diagnostic("ELECTRON-LIFECYCLE-0004", "Electron main process is exiting.", null, code === 0 ? "INFO" : "ERROR", {
+    exitCode: code,
+  });
 });
 app.on("will-quit", () => {
   diagnostic("ELECTRON-LIFECYCLE-0002", "Electron application is quitting.", null, "INFO");
