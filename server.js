@@ -8,6 +8,7 @@ import { scanInstalledGames, getInstalledGames, launchInstalledGame } from './se
 import fs from 'node:fs';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
+import { diagnostic } from './server/diagnostics.js';
 
 // Load private project settings from the root .env file without exposing them to the renderer.
 // Existing process environment variables take precedence over values in .env.
@@ -26,7 +27,7 @@ try {
     process.env[match[1]] = value;
   }
 } catch (error) {
-  if (error.code !== 'ENOENT') console.warn('Could not read the project .env file:', error.message);
+  if (error.code !== 'ENOENT') diagnostic('ENV-0001', 'Could not read the project .env file.', error);
 }
 
 const __filename = fileURLToPath(import.meta.url);
@@ -178,12 +179,12 @@ function getLocalSteamAccount() {
 
 async function steamWebApi(interfaceName, methodName, params = {}) {
   const key = process.env.STEAM_WEB_API_KEY;
-  if (!key) throw new Error('Add STEAM_WEB_API_KEY to the desktop app environment to load full Steam account statistics.');
+  if (!key) throw Object.assign(new Error('STEAM_WEB_API_KEY is not configured.'), { code: 'STEAM_KEY_MISSING' });
   const url = new URL(`https://api.steampowered.com/${interfaceName}/${methodName}/v1/`);
   url.searchParams.set('key', key);
   for (const [name, value] of Object.entries(params)) url.searchParams.set(name, String(value));
   const response = await fetch(url, { signal: AbortSignal.timeout(12000) });
-  if (!response.ok) throw new Error(`Steam Web API returned HTTP ${response.status}`);
+  if (!response.ok) throw Object.assign(new Error(`Steam Web API returned HTTP ${response.status}`), { code: `STEAM_HTTP_${response.status}` });
   return response.json();
 }
 
@@ -284,6 +285,7 @@ app.get('/api/v1/profile/me', async (_req, res) => {
     });
     res.json(base);
   } catch (error) {
+    diagnostic('STEAM-API-0001', 'Steam profile request could not be completed.', error, 'WARN');
     base.statsUnavailableReason = error.message || 'Steam account statistics could not be loaded.';
     res.json(base);
   }
@@ -595,5 +597,5 @@ export function startServer(port = PORT, host = '127.0.0.1') {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
   startServer(Number(process.env.PORT || 3000), process.env.HOST || '127.0.0.1')
-    .catch((error) => { console.error(error); process.exitCode = 1; });
+    .catch((error) => { diagnostic('SERVER-0001', 'Backend server failed to start.', error, 'FATAL'); process.exitCode = 1; });
 }
