@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Monitor, Palette, Power, RotateCcw, Moon, AlertTriangle, Volume2, MousePointer2, Music2 } from "lucide-react";
 import "./ConsoleSettings.css";
 
-const DEFAULTS = { accent: "#2877dc", font: "Inter", backdrop: "blue", soundsEnabled: true, soundVolume: 50 };
+const DEFAULTS = { accent: "#2877dc", font: "Inter", backdrop: "blue", soundsEnabled: true, soundVolume: 50, backgroundMusicEnabled: true };
 
 export default function ConsoleSettingsPage() {
   const [settings, setSettings] = useState(() => {
@@ -76,13 +76,19 @@ export default function ConsoleSettingsPage() {
       <section className="console-settings-section">
         <div className="console-settings-section-heading"><Volume2 size={20} /><div><h2>Audio & Navigation</h2><p>Optional Steam-style menu sounds. Missing audio files are silently skipped.</p></div></div>
         <div className="console-settings-row"><div><strong>Interface sounds</strong><p>Play a sound when hovering over controls and selecting buttons.</p></div><label className="console-settings-toggle"><input type="checkbox" checked={settings.soundsEnabled} onChange={(event) => update("soundsEnabled", event.target.checked)}/><span>{settings.soundsEnabled ? "On" : "Off"}</span></label></div>
-        <div className="console-settings-row"><div><strong>Sound volume</strong><p>Controls hover, select, and background audio.</p></div><label className="console-settings-volume"><input type="range" min="0" max="100" step="5" value={settings.soundVolume} onChange={(event) => update("soundVolume", Number(event.target.value))}/><span>{settings.soundVolume}%</span></label></div>
+        <div className="console-settings-row"><div><strong>Background music</strong><p>Play your selected music throughout the console while this window is focused.</p></div><label className="console-settings-toggle"><input type="checkbox" checked={settings.backgroundMusicEnabled !== false} onChange={(event) => update("backgroundMusicEnabled", event.target.checked)}/><span>{settings.backgroundMusicEnabled !== false ? "On" : "Off"}</span></label></div>
+        <div className="console-settings-row"><div><strong>Sound volume</strong><p>Controls UI effects and background music.</p></div><label className="console-settings-volume"><input type="range" min="0" max="100" step="5" value={settings.soundVolume} onChange={(event) => update("soundVolume", Number(event.target.value))}/><span>{settings.soundVolume}%</span></label></div>
         <div className="console-settings-sound-tests">
-          <button className="console-settings-button secondary" onClick={() => testSound("Hover_Steam.mp3")}><MousePointer2 size={16}/> Test Hover</button>
-          <button className="console-settings-button secondary" onClick={() => testSound("Select_Stream.mp3")}><Volume2 size={16}/> Test Select</button>
-          <button className="console-settings-button secondary" onClick={() => testSound("Steam_Background.mp3")}><Music2 size={16}/> Test Background</button>
+          {[
+            ["Hover_Steam.mp3", "Test Hover"], ["Select_Stream.mp3", "Test Select"], ["Steam_Background.mp3", "Test Background"],
+            ["QuickMenu_Open.mp3", "Test Menu Open"], ["QuickMenu_Close.mp3", "Test Menu Close"], ["Navigation_Back.mp3", "Test Back"],
+            ["Keyboard_Typing.mp3", "Test Typing"], ["Achievement_Unlock.mp3", "Test Achievement"],
+            ["Party_Join.mp3", "Test Party Join"], ["Party_Leave.mp3", "Test Party Leave"],
+            ["Call_Connected.mp3", "Test Call Connected"], ["Call_Disconnected.mp3", "Test Call Disconnected"],
+            ["Console_Notification.mp3", "Test Notification"], ["Console_Error.mp3", "Test Error"], ["Game_Launch.mp3", "Test Game Launch"],
+          ].map(([file, label]) => <button key={file} className="console-settings-button secondary" onClick={() => testSound(file)}>{label}</button>)}
         </div>
-        <p className="console-settings-audio-note">Place these exact files in the project's <code>public</code> folder: <code>Hover_Steam.mp3</code>, <code>Select_Stream.mp3</code>, and <code>Steam_Background.mp3</code>. The background track loops only on the Games home screen.</p>
+        <p className="console-settings-audio-note">Optional files go in the project's <code>public</code> folder: <code>Hover_Steam.mp3</code>, <code>Select_Stream.mp3</code>, <code>Steam_Background.mp3</code>, <code>QuickMenu_Open.mp3</code>, <code>QuickMenu_Close.mp3</code>, <code>Navigation_Back.mp3</code>, <code>Keyboard_Typing.mp3</code>, <code>Achievement_Unlock.mp3</code>, <code>Party_Join.mp3</code>, <code>Party_Leave.mp3</code>, <code>Call_Connected.mp3</code>, <code>Call_Disconnected.mp3</code>, <code>Console_Notification.mp3</code>, <code>Console_Error.mp3</code>, and <code>Game_Launch.mp3</code>. Missing files are skipped. UI sounds stop when the console loses focus; voice-call audio is independent.</p>
       </section>
 
       <section className="console-settings-section">
