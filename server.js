@@ -221,6 +221,26 @@ app.get('/api/v1/profile/me', async (_req, res) => {
     const ownedGames = gamesPayload?.response?.games || [];
     const recentGames = recentPayload?.response?.games || [];
     const friends = friendsPayload?.friendslist?.friends || [];
+    let steamFriends = [];
+    if (friends.length > 0) {
+      try {
+        const friendIds = friends.map((friend) => friend.steamid).filter((id) => /^[0-9]{17}$/.test(id));
+        const friendProfiles = [];
+        for (let index = 0; index < friendIds.length; index += 100) {
+          const payload = await steamWebApi('ISteamUser', 'GetPlayerSummaries', { steamids: friendIds.slice(index, index + 100).join(',') });
+          friendProfiles.push(...(payload.response?.players || []));
+        }
+        steamFriends = friendProfiles.map((friend) => ({
+          steamId: friend.steamid,
+          personaName: friend.personaname || 'Steam friend',
+          avatar: friend.avatarfull || friend.avatarmedium || null,
+          profileUrl: friend.profileurl || null,
+          personaState: Number(friend.personastate || 0),
+          gameName: friend.gameextrainfo || null,
+          gameId: friend.gameid || null,
+        }));
+      } catch {}
+    }
     const totalMinutes = ownedGames.reduce((sum, game) => sum + Number(game.playtime_forever || 0), 0);
     Object.assign(base, {
       personaName: player.personaname || base.personaName,
@@ -230,6 +250,7 @@ app.get('/api/v1/profile/me', async (_req, res) => {
       games: gamesPayload ? (gamesPayload.response?.game_count ?? ownedGames.length) : null,
       totalHours: gamesPayload ? Math.round(totalMinutes / 60) : null,
       friends: friendsPayload ? friends.length : null,
+      steamFriends: friendsPayload ? steamFriends : null,
       level: levelPayload?.response?.player_level ?? null,
       recentGames: recentGames.map((game) => ({
         appId: String(game.appid),
