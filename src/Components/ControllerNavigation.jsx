@@ -242,6 +242,43 @@ export default function ControllerNavigationProvider({ children }) {
         }
     }, [action, processDirection, navigate, setFocus, findNearest]);
 
+    // Native USB/Bluetooth gamepads (including DualShock 4) via Chromium's Gamepad API.
+    // Button mappings follow the standard layout when Windows exposes a standard-mapped pad.
+    useEffect(() => {
+        let frameId;
+        let lastDirectionAt = 0;
+        const previousButtons = new Map();
+        const poll = (timestamp) => {
+            if (document.hasFocus()) {
+                const pads = navigator.getGamepads?.() || [];
+                const pad = Array.from(pads).find(candidate => candidate?.connected);
+                if (pad) {
+                    const rising = (index) => {
+                        const key = String(pad.index) + ":" + String(index);
+                        const down = Boolean(pad.buttons[index]?.pressed);
+                        const wasDown = previousButtons.get(key) || false;
+                        previousButtons.set(key, down);
+                        return down && !wasDown;
+                    };
+                    let direction = null;
+                    if (rising(12) || (pad.axes[1] < -0.65 && timestamp - lastDirectionAt > 190)) direction = "up";
+                    else if (rising(13) || (pad.axes[1] > 0.65 && timestamp - lastDirectionAt > 190)) direction = "down";
+                    else if (rising(14) || (pad.axes[0] < -0.65 && timestamp - lastDirectionAt > 190)) direction = "left";
+                    else if (rising(15) || (pad.axes[0] > 0.65 && timestamp - lastDirectionAt > 190)) direction = "right";
+                    if (direction && timestamp - lastDirectionAt > 120) {
+                        lastDirectionAt = timestamp;
+                        processDirection(direction);
+                    }
+                    if (rising(0) && focusedRef.current && isActiveRef.current) focusedRef.current.click();
+                    if (rising(1) && location.pathname !== "/home") navigate(-1);
+                }
+            }
+            frameId = requestAnimationFrame(poll);
+        };
+        frameId = requestAnimationFrame(poll);
+        return () => cancelAnimationFrame(frameId);
+    }, [processDirection, navigate, location.pathname]);
+
     // ── Keyboard fallback (testing without a controller) ────────────
 
     useEffect(() => {
