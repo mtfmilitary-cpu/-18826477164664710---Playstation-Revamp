@@ -113,7 +113,7 @@ async function moveCursorToQuickMenu() {
   const bounds = screen.getPrimaryDisplay().bounds;
   const x = Math.round(bounds.x + 120);
   const y = Math.round(bounds.y + 100);
-  const script = 'Add-Type -TypeDefinition \'[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y);\' -Name ConsoleCursor -Namespace Native; [Native.ConsoleCursor]::SetCursorPos(' + x + ', ' + y + ') | Out-Null';
+  const script = 'Add-Type -MemberDefinition \'[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y);\' -Name ConsoleCursor -Namespace Native; [Native.ConsoleCursor]::SetCursorPos(' + x + ', ' + y + ') | Out-Null';
   try {
     await execFileAsync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { windowsHide: true, timeout: 3000 });
   } catch (error) {
