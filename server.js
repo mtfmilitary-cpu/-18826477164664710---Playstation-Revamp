@@ -319,7 +319,8 @@ app.get('/api/v1/profile/me', async (_req, res) => {
     const levelPayload = value(3);
     const friendsPayload = value(4);
     const player = summaryPayload?.response?.players?.[0] || {};
-    const ownedGames = gamesPayload?.response?.games || [];
+    const ownedGames = Array.isArray(gamesPayload?.response?.games) ? gamesPayload.response.games : [];
+    const hasOwnedGamePlaytime = Boolean(gamesPayload && Array.isArray(gamesPayload.response?.games));
     const recentGames = recentPayload?.response?.games || [];
     const friends = Array.isArray(friendsPayload?.friendslist?.friends) ? friendsPayload.friendslist.friends : [];
     let steamFriends = [];
@@ -354,7 +355,10 @@ app.get('/api/v1/profile/me', async (_req, res) => {
         });
       }
     }
-    const totalMinutes = ownedGames.reduce((sum, game) => sum + Math.max(0, Number(game.playtime_forever || 0)), 0);
+    const totalMinutes = ownedGames.reduce((sum, game) => {
+      const minutes = Number(game.playtime_forever);
+      return sum + (Number.isFinite(minutes) ? Math.max(0, minutes) : 0);
+    }, 0);
     const normalizedOwnedGames = ownedGames
       .map((game) => ({
         appId: String(game.appid),
@@ -374,8 +378,8 @@ app.get('/api/v1/profile/me', async (_req, res) => {
       profileUrl: player.profileurl || base.profileUrl,
       memberSince: player.timecreated ? new Date(Number(player.timecreated) * 1000).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : null,
       games: gamesPayload ? (gamesPayload.response?.game_count ?? ownedGames.length) : null,
-      totalHours: gamesPayload ? Math.round(totalMinutes / 60) : null,
-      totalPlaytimeMinutes: gamesPayload ? totalMinutes : null,
+      totalHours: hasOwnedGamePlaytime ? Math.floor(totalMinutes / 60) : null,
+      totalPlaytimeMinutes: hasOwnedGamePlaytime ? totalMinutes : null,
       ownedGames: gamesPayload ? normalizedOwnedGames : null,
       friends: friendsPayload ? friends.length : null,
       steamFriends: friendsPayload ? steamFriends : null,
@@ -388,7 +392,7 @@ app.get('/api/v1/profile/me', async (_req, res) => {
         cover: `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.appid}/header.jpg`,
         steamUrl: `https://store.steampowered.com/app/${game.appid}/`,
       })),
-      fullStatsAvailable: Boolean(summaryPayload || gamesPayload || recentPayload || levelPayload || friendsPayload),
+      fullStatsAvailable: Boolean(summaryPayload || hasOwnedGamePlaytime || recentPayload || levelPayload || friendsPayload),
       statsUnavailableReason: results.some((result) => result.status === 'rejected')
         ? 'Some Steam profile fields could not be returned. Check the profile privacy settings and whether the Web API key is valid.'
         : null,
