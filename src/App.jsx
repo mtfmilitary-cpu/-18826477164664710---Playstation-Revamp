@@ -6,7 +6,7 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
-import GamesPage from "./Components/GamesPage";
+import HomeDashboard from "./Components/HomeDashboard";
 import FriendsPage from "./Components/FriendsPage";
 import PartyChatPage from "./Components/PartyChatPage";
 import ControllerDashboard from "./Components/Anikator/ControllerDashboard";
@@ -31,7 +31,7 @@ function App() {
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<Navigate to="/home" replace />} />
-            <Route path="/home" element={<GamesPage />} />
+            <Route path="/home" element={<HomeDashboard />} />
             <Route path="/media" element={<PSMediaUI />} />
             <Route path="/store" element={<SteamStorePage />} />
             <Route path="/showcase" element={<ControllerDashboard />} />
