@@ -31,8 +31,14 @@ try {
   $installDir = Join-Path $env:LOCALAPPDATA 'DS4Windows'
   New-Item -ItemType Directory -Path $installDir -Force | Out-Null
   Expand-Archive -LiteralPath $ds4 -DestinationPath $installDir -Force
-  $ds4Exe = Join-Path $installDir 'DS4Windows.exe'
-  if (-not (Test-Path -LiteralPath $ds4Exe)) { throw 'DS4Windows executable was not found after extraction.' }
+  # Release ZIPs may place the executable in a versioned/nested directory.
+  # Search the extracted tree instead of assuming the EXE is at the ZIP root.
+  $ds4ExeItem = Get-ChildItem -LiteralPath $installDir -Filter 'DS4Windows.exe' -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+  if (-not $ds4ExeItem) {
+    $topEntries = (Get-ChildItem -LiteralPath $installDir -Force -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name) -join ', '
+    throw ('DS4Windows.exe was not found anywhere in the extracted archive. Extracted entries: ' + $topEntries)
+  }
+  $ds4Exe = $ds4ExeItem.FullName
 
   Set-Stage 'driver' 'Installing ViGEmBus driver' 'Follow the driver setup window to finish installation.'
   $installer = Start-Process -FilePath $driver -Verb RunAs -Wait -PassThru
