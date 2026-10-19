@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
+import { diagnostic } from "./diagnostics.js";
 
 const execFileAsync = promisify(execFile);
 const isWindows = process.platform === "win32";
@@ -28,11 +29,19 @@ function readLibraryFolders(steamRoot) {
   const libraries = new Set([steamRoot]);
   const file = path.join(steamRoot, "steamapps", "libraryfolders.vdf");
   try {
+    diagnostic("FILE-ACCESS-0001", "Reading Steam library folder configuration.", null, "INFO", {
+      file: "steamapps/libraryfolders.vdf",
+    });
     const contents = fs.readFileSync(file, "utf8");
     for (const match of contents.matchAll(/"path"\s*"([^"]+)"/g)) {
       libraries.add(match[1].replace(/\\\\/g, "\\"));
     }
-  } catch { /* Older Steam installs may not have libraryfolders.vdf. */ }
+  } catch (error) {
+    diagnostic("FILE-ACCESS-0002", "Steam library folder configuration could not be read.", null, "WARN", {
+      file: "steamapps/libraryfolders.vdf",
+      code: /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || "")) ? String(error.code) : "FILE_READ_FAILED",
+    });
+  }
   return [...libraries];
 }
 
@@ -59,7 +68,15 @@ function findSteamRoots() {
     roots.add(path.join(os.homedir(), ".steam", "steam"));
     roots.add(path.join(os.homedir(), ".local", "share", "Steam"));
   }
-  return [...roots].filter((root) => root && fs.existsSync(path.join(root, "steamapps")));
+  const found = [...roots].filter((root) => {
+    const exists = Boolean(root && fs.existsSync(path.join(root, "steamapps")));
+    diagnostic(exists ? "STEAM-PATH-0001" : "STEAM-PATH-0002",
+      exists ? "Steam library root detected." : "Candidate Steam library root was not found.",
+      null, exists ? "INFO" : "WARN",
+      { candidate: root ? path.basename(root) : "empty", exists });
+    return exists;
+  });
+  return found;
 }
 
 export function scanInstalledGames() {
@@ -69,12 +86,29 @@ export function scanInstalledGames() {
     for (const library of readLibraryFolders(root)) {
       const appsDir = path.join(library, "steamapps");
       let entries = [];
-      try { entries = fs.readdirSync(appsDir); } catch { continue; }
+      try {
+        diagnostic("FILE-ACCESS-0003", "Listing Steam app manifests.", null, "INFO", {
+          file: "steamapps", libraryIndex: [...readLibraryFolders(root)].indexOf(library),
+        });
+        entries = fs.readdirSync(appsDir);
+      } catch (error) {
+        diagnostic("FILE-ACCESS-0004", "Steam app manifest directory could not be listed.", null, "WARN", {
+          file: "steamapps",
+          code: /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || "")) ? String(error.code) : "DIRECTORY_READ_FAILED",
+        });
+        continue;
+      }
       for (const filename of entries) {
         if (!/^appmanifest_\d+\.acf$/i.test(filename)) continue;
         try {
+          diagnostic("FILE-ACCESS-0005", "Reading an installed-game manifest.", null, "INFO", {
+            file: filename,
+          });
           const manifest = parseManifest(fs.readFileSync(path.join(appsDir, filename), "utf8"));
-          if (!manifest) continue;
+          if (!manifest) {
+            diagnostic("FILE-ACCESS-0006", "Installed-game manifest did not contain a valid app ID.", null, "WARN", { file: filename });
+            continue;
+          }
           games.set(manifest.appId, {
             ...manifest,
             libraryPath: library,
@@ -82,12 +116,20 @@ export function scanInstalledGames() {
             hero: `https://cdn.cloudflare.steamstatic.com/steam/apps/${manifest.appId}/library_hero.jpg`,
             steamUrl: `https://store.steampowered.com/app/${manifest.appId}/`,
           });
-        } catch { /* Skip malformed or unreadable manifests. */ }
+        } catch (error) {
+          diagnostic("FILE-ACCESS-0007", "Installed-game manifest could not be read or parsed.", null, "WARN", {
+            file: filename,
+            code: /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || "")) ? String(error.code) : "MANIFEST_READ_FAILED",
+          });
+        }
       }
     }
   }
   cachedGames = [...games.values()].sort((a, b) => a.name.localeCompare(b.name));
   lastScanAt = new Date().toISOString();
+  diagnostic("LIBRARY-0000", "Steam library scan finished.", null, "INFO", {
+    gamesFound: cachedGames.length, libraryCount: roots.length,
+  });
   return { games: cachedGames, scannedAt: lastScanAt, libraryCount: roots.length };
 }
 
@@ -103,6 +145,7 @@ export async function launchInstalledGame(appId) {
   if (!games.some((game) => game.appId === normalized)) {
     throw new Error("That game is not in the detected installed Steam library. Refresh the library first.");
   }
+  diagnostic("GAME-LAUNCH-0000", "Launching an installed Steam game.", null, "INFO", { appId: normalized });
   if (isWindows) {
     await execFileAsync("cmd.exe", ["/c", "start", "", `steam://run/${normalized}`], { windowsHide: true });
   } else {
@@ -110,5 +153,6 @@ export async function launchInstalledGame(appId) {
     if (open) await open(`steam://run/${normalized}`);
     else throw new Error("Launching Steam games is currently supported on Windows.");
   }
+  diagnostic("GAME-LAUNCH-0003", "Steam game launch command was issued.", null, "INFO", { appId: normalized });
   return { launched: true, appId: normalized };
 }
