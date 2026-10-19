@@ -133,8 +133,12 @@ export default function ConsoleSettingsPage() {
           <div><strong>ViGEmBus driver</strong><p>{controllerStack?.vigemBusInstalled ? "Driver service detected (" + (controllerStack.vigemBusState || "state unknown") + ")." : "ViGEmBus was not detected. This check does not install or repair drivers."}</p></div>
           <span className={controllerStack?.vigemBusInstalled ? "console-controller-status connected" : "console-controller-status"}>{controllerStack?.vigemBusInstalled ? "Detected" : "Not detected"}</span>
         </div>
+        <div className="console-settings-row">
+          <div><strong>Newer DS4Windows backend</strong><p>{controllerStack?.modernBackendInstalled ? "USB/IP driver detected (" + (controllerStack.modernBackendState || "state unknown") + ")." : "No USB/IP driver detected. Newer DS4Windows builds may use a different virtual-controller backend."}</p></div>
+          <span className={controllerStack?.modernBackendInstalled ? "console-controller-status connected" : "console-controller-status"}>{controllerStack?.modernBackendInstalled ? "Detected" : "Not detected"}</span>
+        </div>
         <div className="console-settings-sound-tests">
-          <button className="console-settings-button secondary" onClick={() => window.consoleBridge?.getControllerStackStatus?.().then(setControllerStack).catch(() => setControllerStack({ supported: false, error: "Could not check DS4Windows status." }))}><RefreshCw size={16}/> Check DS4Windows / ViGEmBus</button>
+          <button className="console-settings-button secondary" onClick={() => window.consoleBridge?.getControllerStackStatus?.().then(setControllerStack).catch(() => setControllerStack({ supported: false, error: "Could not check DS4Windows status." }))}><RefreshCw size={16}/> Check controller stack</button>
           <button className="console-settings-button secondary" onClick={() => window.consoleBridge?.openControllerGuide?.("ds4windows").catch((error) => setPowerMessage(error.message || "Could not open DS4Windows guide."))}>DS4Windows guide</button>
           <button className="console-settings-button secondary" onClick={() => window.consoleBridge?.openControllerGuide?.("vigembus").catch((error) => setPowerMessage(error.message || "Could not open ViGEmBus page."))}>ViGEmBus project</button>
         </div>
