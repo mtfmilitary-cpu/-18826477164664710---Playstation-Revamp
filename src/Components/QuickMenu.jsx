@@ -33,6 +33,11 @@ export default function QuickMenu() {
   const navigate = useNavigate();
   const active = items.find((item) => item.id === selected) || items[0];
 
+  const closeMenu = useCallback(() => {
+    setOpen(false);
+    window.dispatchEvent(new Event("console:sound-quick-close"));
+  }, []);
+
   const loadProfile = useCallback(async () => {
     try {
       const response = await fetch("/api/v1/profile/me", { cache: "no-store" });
@@ -64,7 +69,7 @@ export default function QuickMenu() {
   }, []);
 
   useEffect(() => {
-    const toggle = () => { setOpen((value) => !value); setNotice(""); };
+    const toggle = () => { setOpen((value) => { window.dispatchEvent(new Event(value ? "console:sound-quick-close" : "console:sound-quick-open")); return !value; }); setNotice(""); };
     window.addEventListener("console:quick-menu-toggle", toggle);
     const unsubscribe = window.consoleBridge?.onQuickMenuToggle?.(() => window.dispatchEvent(new Event("console:quick-menu-toggle")));
     const keydown = (event) => {
@@ -72,7 +77,7 @@ export default function QuickMenu() {
         event.preventDefault();
         toggle();
       }
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") closeMenu();
     };
     window.addEventListener("keydown", keydown);
     return () => {
@@ -140,7 +145,7 @@ export default function QuickMenu() {
 
   async function activate(item) {
     setSelected(item.id); setNotice("");
-    if (item.path) { setOpen(false); navigate(item.path); }
+    if (item.path) { closeMenu(); navigate(item.path); }
     else if (item.id === "friends") loadProfile();
     else if (item.id === "sound") loadDevices();
     else if (item.id === "party") loadParties();
@@ -161,9 +166,9 @@ export default function QuickMenu() {
   const onlineCount = Array.isArray(friends) ? friends.filter((friend) => friend.personaState > 0).length : null;
 
   if (!open) return null;
-  return <div className="quick-menu-scrim" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
+  return <div className="quick-menu-scrim" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeMenu(); }}>
     <section className="quick-menu-panel" role="dialog" aria-modal="true" aria-label="Quick Menu">
-      <header className="quick-menu-header"><span>QUICK MENU</span><button aria-label="Close Quick Menu" onClick={() => setOpen(false)}><X size={18}/></button></header>
+      <header className="quick-menu-header"><span>QUICK MENU</span><button aria-label="Close Quick Menu" onClick={closeMenu}><X size={18}/></button></header>
       <div className="quick-menu-content">
         <nav className="quick-menu-list" aria-label="Quick Menu options">
           {items.map((item) => {
