@@ -290,8 +290,8 @@ app.get('/api/v1/profile/me', async (_req, res) => {
 });
 
 
-// Load all available achievement records for games with recorded playtime.
-// The client calls this only on demand; unavailable/private game stats are skipped and reported.
+// Load available achievement records across the owned Steam library.
+// The client requests this when the profile opens; unavailable/private game stats are skipped and reported.
 const allAchievementCache = new Map();
 app.get('/api/v1/profile/achievements/all', async (_req, res) => {
   const account = getLocalSteamAccount();
