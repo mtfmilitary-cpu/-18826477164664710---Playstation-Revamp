@@ -421,9 +421,7 @@ const HomeDashboard = () => {
                                         borderRadius: "2px",
                                         background: i === activeIdx
                                             ? "rgba(255,255,255,0.9)"
-                                            : i < featuredGames.length
-                                                ? "rgba(255,255,255,0.3)"
-                                                : "rgba(255,255,255,0.15)",
+                                            : "rgba(255,255,255,0.15)",
                                         border: "none", cursor: "pointer",
                                         transition: "all 300ms ease",
                                     }}
