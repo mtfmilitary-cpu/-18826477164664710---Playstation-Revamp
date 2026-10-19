@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld("consoleBridge", Object.freeze({
   hideQuickMenu: () => ipcRenderer.invoke("console:quick-menu-hide"),
   openMainRoute: (route) => ipcRenderer.invoke("console:open-main-route", route),
   openBluetoothSettings: () => ipcRenderer.invoke("console:open-bluetooth-settings"),
+  getControllerStackStatus: () => ipcRenderer.invoke("console:controller-stack-status"),
+  openControllerGuide: (guide) => ipcRenderer.invoke("console:open-controller-guide", guide),
   reportDiagnostic: (entry) => {
     if (!entry || typeof entry !== "object") return Promise.resolve(false);
     return ipcRenderer.invoke("console:renderer-diagnostic", {
