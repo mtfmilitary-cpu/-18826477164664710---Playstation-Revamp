@@ -24,6 +24,13 @@ contextBridge.exposeInMainWorld("consoleBridge", Object.freeze({
   openMainRoute: (route) => ipcRenderer.invoke("console:open-main-route", route),
   openBluetoothSettings: () => ipcRenderer.invoke("console:open-bluetooth-settings"),
   getControllerStackStatus: () => ipcRenderer.invoke("console:controller-stack-status"),
+  installControllerStack: () => ipcRenderer.invoke("console:install-controller-stack"),
+  onControllerSetupProgress: (callback) => {
+    if (typeof callback !== "function") return () => {};
+    const listener = (_event, progress) => callback(progress);
+    ipcRenderer.on("console:controller-setup-progress", listener);
+    return () => ipcRenderer.removeListener("console:controller-setup-progress", listener);
+  },
   openControllerGuide: (guide) => ipcRenderer.invoke("console:open-controller-guide", guide),
   reportDiagnostic: (entry) => {
     if (!entry || typeof entry !== "object") return Promise.resolve(false);
