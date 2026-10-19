@@ -19,6 +19,7 @@ export default function ControllerNavigationProvider({ children }) {
     const location = useLocation();
     const focusedRef = useRef(null);
     const [focusedEl, setFocusedEl] = useState(null);
+    const [focusIndicatorEnabled, setFocusIndicatorEnabled] = useState(false);
     const isActiveRef = useRef(false);
     const actionTimestampRef = useRef(0);
 
@@ -124,6 +125,7 @@ export default function ControllerNavigationProvider({ children }) {
         setFocusedEl(el);
 
         if (el) {
+            setFocusIndicatorEnabled(true);
             el.classList.add('ps-focused');
             isActiveRef.current = true;
             window.__focusNavActive = true;
@@ -309,6 +311,7 @@ export default function ControllerNavigationProvider({ children }) {
                         focusedRef.current = null;
                         setFocusedEl(null);
                         isActiveRef.current = false;
+                        setFocusIndicatorEnabled(false);
                         window.__focusNavActive = false;
                     }
                     break;
@@ -333,6 +336,7 @@ export default function ControllerNavigationProvider({ children }) {
                 focusedRef.current = null;
                 setFocusedEl(null);
                 isActiveRef.current = false;
+                setFocusIndicatorEnabled(false);
                 window.__focusNavActive = false;
             }, 150);
         };
@@ -349,14 +353,43 @@ export default function ControllerNavigationProvider({ children }) {
         focusedRef.current = null;
         setFocusedEl(null);
         isActiveRef.current = false;
+        setFocusIndicatorEnabled(false);
         window.__focusNavActive = false;
     }, [location.pathname]);
 
     // ── Render ──────────────────────────────────────────────────────
 
+    const toggleFocusIndicator = () => {
+        if (focusIndicatorEnabled) {
+            if (focusedRef.current) focusedRef.current.classList.remove('ps-focused');
+            focusedRef.current = null;
+            setFocusedEl(null);
+            isActiveRef.current = false;
+            setFocusIndicatorEnabled(false);
+            window.__focusNavActive = false;
+            return;
+        }
+        setFocusIndicatorEnabled(true);
+        const first = findNearest(null, 'down');
+        if (first) setFocus(first);
+    };
+
     return (
         <ControllerNavContext.Provider value={{ focusedEl, setFocus, isActive: isActiveRef.current }}>
             {children}
+            {location.pathname !== '/overlay' && (
+                <button
+                    type="button"
+                    className={`controller-focus-toggle ${focusIndicatorEnabled ? 'is-active' : ''}`}
+                    onClick={toggleFocusIndicator}
+                    aria-pressed={focusIndicatorEnabled}
+                    title="Show or hide the controller selection highlight"
+                    data-no-focus="true"
+                >
+                    <span className="controller-focus-toggle-dot" aria-hidden="true" />
+                    <span>Selection {focusIndicatorEnabled ? 'ON' : 'OFF'}</span>
+                </button>
+            )}
         </ControllerNavContext.Provider>
     );
 }
