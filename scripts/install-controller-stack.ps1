@@ -36,7 +36,8 @@ try {
 
   Set-Stage 'driver' 'Installing ViGEmBus driver' 'Follow the driver setup window to finish installation.'
   $installer = Start-Process -FilePath $driver -Wait -PassThru
-  if ($installer.ExitCode -ne 0) { throw ('ViGEmBus setup exited with code ' + $installer.ExitCode + '.') }
+  if ($installer.ExitCode -notin @(0, 3010)) { throw ('ViGEmBus setup exited with code ' + $installer.ExitCode + '.') }
+  $needsRestart = $installer.ExitCode -eq 3010
 
   Set-Stage 'validate' 'Validating controller setup' 'Checking the DS4Windows app files and ViGEmBus driver service.'
   $service = Get-CimInstance Win32_SystemDriver -Filter "Name='ViGEmBus'" -ErrorAction SilentlyContinue
@@ -44,14 +45,15 @@ try {
   if (-not $service -and -not $serviceKey) {
     throw 'DS4Windows is present, but Windows did not report the ViGEmBus driver service. Check the driver setup or restart if requested.'
   }
+  $driverState = if ($service) { [string]$service.State } else { 'Installed; service state pending' }
   $result = @{
     success = $true
     ds4WindowsInstalled = $true
     ds4WindowsPath = $ds4Exe
     vigemBusInstalled = $true
-    vigemBusState = if ($service) { [string]$service.State } else { 'Installed; service state pending' }
-    needsRestart = $false
-    message = 'Controller support is installed. Try out the controller system now.'
+    vigemBusState = $driverState
+    needsRestart = $needsRestart
+    message = if ($needsRestart) { 'Controller support is installed. Restart Windows when convenient, then try out the controller system.' } else { 'Controller support is installed. Try out the controller system now.' }
   }
   $result | ConvertTo-Json -Compress | Set-Content -LiteralPath $ResultPath -Encoding ASCII
   Set-Stage 'complete' 'Controller support installed' 'Controller support is installed. Try out the controller system now.' 'success'
