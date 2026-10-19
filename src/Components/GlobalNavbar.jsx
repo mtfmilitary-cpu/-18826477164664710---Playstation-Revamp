@@ -1,7 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { SearchIcon, Settings } from "lucide-react";
-import { userProfile } from "../data/mockData.js";
 import { QRCodeSVG } from "qrcode.react";
 import { useDualSenseWS } from "./Anikator/useDualSenseWS";
 
@@ -10,6 +9,16 @@ const GlobalNavbar = () => {
     const currentPath = location.pathname;
     const { session } = useDualSenseWS();
     const [showQR, setShowQR] = useState(false);
+    const [steamProfile, setSteamProfile] = useState(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        fetch("/api/v1/profile/me", { cache: "no-store" })
+            .then((response) => response.json())
+            .then((data) => { if (!cancelled && data.connected) setSteamProfile(data); })
+            .catch(() => {});
+        return () => { cancelled = true; };
+    }, []);
 
     const navItems = [
         { label: "Games", path: "/home" },
@@ -115,15 +124,19 @@ const GlobalNavbar = () => {
 
                 {/* User Avatar */}
                 <Link to="/profile" style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", textDecoration: "none" }}>
-                    <div style={{
-                        width: "36px", height: "36px", borderRadius: "50%",
-                        background: "linear-gradient(135deg, #0070d1, #00d4ff)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontWeight: 700, fontSize: "14px", color: "white",
-                        border: "2px solid rgba(255,255,255,0.2)",
-                    }}>
-                        {userProfile.username.substring(0, 2).toUpperCase()}
-                    </div>
+                    {steamProfile?.avatar ? (
+                        <img src={steamProfile.avatar} alt={steamProfile.personaName || "Steam profile"} title={steamProfile.personaName || "Steam profile"} style={{ width: "36px", height: "36px", borderRadius: "50%", objectFit: "cover", border: "2px solid rgba(255,255,255,0.2)" }} />
+                    ) : (
+                        <div title={steamProfile?.personaName || "Steam profile"} style={{
+                            width: "36px", height: "36px", borderRadius: "50%",
+                            background: "linear-gradient(135deg, #303b4a, #111820)",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            fontWeight: 700, fontSize: "14px", color: "white",
+                            border: "2px solid rgba(255,255,255,0.2)",
+                        }}>
+                            {(steamProfile?.personaName || "S").substring(0, 2).toUpperCase()}
+                        </div>
+                    )}
                 </Link>
             </div>
 
