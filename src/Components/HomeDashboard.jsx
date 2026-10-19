@@ -488,7 +488,7 @@ const HomeDashboard = () => {
                             </>
                         )}
                     </section>
-                </aside>
+                </div>
             )}
         </>
     );
