@@ -23,6 +23,7 @@ export default function QuickMenu() {
   useEffect(() => {
     const toggle = () => { setOpen((value) => !value); setNotice(""); };
     window.addEventListener("console:quick-menu-toggle", toggle);
+    const unsubscribe = window.consoleBridge?.onQuickMenuToggle?.(() => window.dispatchEvent(new Event("console:quick-menu-toggle")));
     const keydown = (event) => {
       if (event.code === "ScrollLock" && !window.consoleBridge?.runtime) {
         event.preventDefault();
@@ -33,6 +34,7 @@ export default function QuickMenu() {
     window.addEventListener("keydown", keydown);
     return () => {
       window.removeEventListener("console:quick-menu-toggle", toggle);
+      unsubscribe?.();
       window.removeEventListener("keydown", keydown);
     };
   }, []);
