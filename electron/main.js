@@ -5,6 +5,7 @@ const execFileAsync = promisify(execFile);
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { startServer } from "../server.js";
+import { diagnostic, diagnosticLogPath } from "../server/diagnostics.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let mainWindow;
@@ -52,8 +53,19 @@ async function createWindow() {
 }
 
 app.whenReady().then(async () => {
-  await startServer(3000, "127.0.0.1");
-  await createWindow();
+  try {
+    await startServer(3000, "127.0.0.1");
+  } catch (error) {
+    diagnostic("ELECTRON-BOOT-0001", "Backend startup failed; the console window will not be created.", error, "FATAL");
+    throw error;
+  }
+  try {
+    await createWindow();
+  } catch (error) {
+    diagnostic("ELECTRON-BOOT-0002", "Electron could not load the console window.", error, "FATAL");
+    throw error;
+  }
+  diagnostic("DIAG-0000", `Diagnostic logging is active. Log file: ${diagnosticLogPath}`, null, "INFO");
   // Scroll Lock is a global console hotkey, including while a Steam game is foregrounded.
   globalShortcut.register("ScrollLock", () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -64,6 +76,18 @@ app.whenReady().then(async () => {
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+}).catch((error) => {
+  diagnostic("ELECTRON-BOOT-0003", "Electron application startup failed.", error, "FATAL");
+  app.quit();
+});
+
+process.on("uncaughtException", (error) => {
+  diagnostic("ELECTRON-FATAL-0001", "Uncaught exception in Electron main process.", error, "FATAL");
+  app.quit();
+});
+
+process.on("unhandledRejection", (reason) => {
+  diagnostic("ELECTRON-PROMISE-0001", "Unhandled promise rejection in Electron main process.", reason instanceof Error ? reason : new Error(String(reason)), "ERROR");
 });
 
 
