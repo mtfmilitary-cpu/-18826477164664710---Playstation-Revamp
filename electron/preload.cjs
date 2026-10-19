@@ -12,6 +12,15 @@ contextBridge.exposeInMainWorld("consoleBridge", Object.freeze({
   runtime: "electron",
   platform: process.platform,
   onQuickMenuToggle,
+  reportDiagnostic: (entry) => {
+    if (!entry || typeof entry !== "object") return Promise.resolve(false);
+    return ipcRenderer.invoke("console:renderer-diagnostic", {
+      code: String(entry.code || ""),
+      message: String(entry.message || ""),
+      name: String(entry.name || ""),
+      detail: String(entry.detail || ""),
+    });
+  },
   requestPowerAction: (action) => {
     if (!["sleep", "restart", "shutdown"].includes(action)) return Promise.reject(new Error("Unsupported power action."));
     return ipcRenderer.invoke("console:power-action", action);
