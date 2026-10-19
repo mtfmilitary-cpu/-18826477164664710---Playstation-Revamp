@@ -1,6 +1,7 @@
 import { app, BrowserWindow, shell } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { startServer } from "../server.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let mainWindow;
@@ -48,6 +49,7 @@ async function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  await startServer(3000, "127.0.0.1");
   await createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
