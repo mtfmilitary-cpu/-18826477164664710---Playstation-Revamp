@@ -238,14 +238,14 @@ ipcMain.handle("console:renderer-diagnostic", (event, entry) => {
 ipcMain.handle("console:controller-stack-status", async (event) => {
   if (!isTrustedLocalUrl(event.senderFrame?.url || "")) return { supported: false, ds4WindowsRunning: false, vigemBusInstalled: false, error: "Untrusted renderer." };
   if (process.platform !== "win32") return { supported: false, ds4WindowsRunning: false, vigemBusInstalled: false, error: "Controller driver checks are available on Windows only." };
-  const script = "$p = Get-Process -Name 'DS4Windows' -ErrorAction SilentlyContinue | Select-Object -First 1; $d = Get-CimInstance Win32_SystemDriver -Filter \"Name='ViGEmBus'\" -ErrorAction SilentlyContinue; [pscustomobject]@{ ds4WindowsRunning = [bool]$p; vigemBusInstalled = [bool]$d; vigemBusState = if ($d) { [string]$d.State } else { 'NotFound' } } | ConvertTo-Json -Compress";
+  const script = "$p = Get-Process -Name 'DS4Windows' -ErrorAction SilentlyContinue | Select-Object -First 1; $d = Get-CimInstance Win32_SystemDriver -Filter \"Name='ViGEmBus'\" -ErrorAction SilentlyContinue; $v = Get-CimInstance Win32_SystemDriver -Filter \"Name='usbip-win2'\" -ErrorAction SilentlyContinue; [pscustomobject]@{ ds4WindowsRunning = [bool]$p; vigemBusInstalled = [bool]$d; vigemBusState = if ($d) { [string]$d.State } else { 'NotFound' }; modernBackendInstalled = [bool]$v; modernBackendState = if ($v) { [string]$v.State } else { 'NotFound' } } | ConvertTo-Json -Compress";
   try {
     const { stdout } = await execFileAsync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { windowsHide: true, timeout: 5000 });
     const result = JSON.parse(stdout.trim());
-    return { supported: true, ds4WindowsRunning: Boolean(result.ds4WindowsRunning), vigemBusInstalled: Boolean(result.vigemBusInstalled), vigemBusState: String(result.vigemBusState || "Unknown") };
+    return { supported: true, ds4WindowsRunning: Boolean(result.ds4WindowsRunning), vigemBusInstalled: Boolean(result.vigemBusInstalled), vigemBusState: String(result.vigemBusState || "Unknown"), modernBackendInstalled: Boolean(result.modernBackendInstalled), modernBackendState: String(result.modernBackendState || "Unknown") };
   } catch (error) {
     diagnostic("CONTROLLER-STACK-0001", "Could not inspect the DS4Windows and ViGEmBus status.", error, "WARN");
-    return { supported: true, ds4WindowsRunning: false, vigemBusInstalled: false, vigemBusState: "Check failed", error: "Windows could not check the controller software. Try running the console again." };
+    return { supported: true, ds4WindowsRunning: false, vigemBusInstalled: false, vigemBusState: "Check failed", modernBackendInstalled: false, modernBackendState: "Check failed", error: "Windows could not check the controller software. Try running the console again." };
   }
 });
 
