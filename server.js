@@ -214,24 +214,92 @@ app.get('/api/v1/store/game/:appId', async (req, res) => {
 app.use(express.static(path.join(__dirname, 'dist')));
 
 // WebSocket upgrade handling for the existing mobile-controller experience.
+const partySignalingPeers = new Map();
+
 server.on('upgrade', (request, socket, head) => {
   const url = new URL(request.url, `http://${request.headers.host || '127.0.0.1'}`);
   if (url.pathname === '/playstation-ws') {
     const session = url.searchParams.get('session') || 'default';
     wss.handleUpgrade(request, socket, head, (ws) => {
       ws.session = session;
+      ws.mode = 'legacy';
+      wss.emit('connection', ws, request);
+    });
+  } else if (url.pathname === '/party-ws') {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      ws.mode = 'party';
       wss.emit('connection', ws, request);
     });
   } else socket.destroy();
 });
 
 wss.on('connection', (ws) => {
-  ws.on('message', (message) => {
-    wss.clients.forEach((client) => {
-      if (client !== ws && client.readyState === 1 && client.session === ws.session) {
-        client.send(message.toString());
+  ws.on('message', (rawMessage) => {
+    let message;
+    try { message = JSON.parse(rawMessage.toString()); } catch { return; }
+
+    if (ws.mode !== 'party') {
+      wss.clients.forEach((client) => {
+        if (client !== ws && client.readyState === 1 && client.mode !== 'party' && client.session === ws.session) {
+          client.send(rawMessage.toString());
+        }
+      });
+      return;
+    }
+
+    if (message.type === 'join') {
+      const partyId = String(message.partyId || '').slice(0, 80);
+      const peerId = String(message.peerId || '').slice(0, 100);
+      const username = String(message.username || 'Party member').trim().slice(0, 32);
+      if (!partyId || !peerId) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Party ID and peer ID are required.' }));
+        return;
       }
+      // Only permit signaling for a currently existing console party.
+      if (!partyRooms.has(partyId)) {
+        ws.send(JSON.stringify({ type: 'error', message: 'That party no longer exists.' }));
+        ws.close(1008, 'Unknown party');
+        return;
+      }
+      ws.partyId = partyId;
+      ws.peerId = peerId;
+      ws.username = username;
+      if (!partySignalingPeers.has(partyId)) partySignalingPeers.set(partyId, new Map());
+      const roomPeers = partySignalingPeers.get(partyId);
+      const existing = [...roomPeers.values()].filter((peer) => peer !== ws && peer.readyState === 1);
+      ws.send(JSON.stringify({ type: 'peers', peers: existing.map((peer) => ({ peerId: peer.peerId, username: peer.username })) }));
+      roomPeers.set(peerId, ws);
+      existing.forEach((peer) => peer.send(JSON.stringify({ type: 'peer-joined', peerId, username })));
+      return;
+    }
+
+    if (!ws.partyId || !ws.peerId) return;
+    if (['offer', 'answer', 'ice'].includes(message.type)) {
+      const targetId = String(message.to || '');
+      const target = partySignalingPeers.get(ws.partyId)?.get(targetId);
+      if (target && target !== ws && target.readyState === 1) {
+        target.send(JSON.stringify({ ...message, from: ws.peerId, username: ws.username }));
+      }
+    } else if (message.type === 'leave') {
+      const roomPeers = partySignalingPeers.get(ws.partyId);
+      if (roomPeers?.get(ws.peerId) === ws) roomPeers.delete(ws.peerId);
+      roomPeers?.forEach((peer) => {
+        if (peer.readyState === 1) peer.send(JSON.stringify({ type: 'peer-left', peerId: ws.peerId }));
+      });
+      if (roomPeers?.size === 0) partySignalingPeers.delete(ws.partyId);
+      ws.partyId = null;
+      ws.peerId = null;
+    }
+  });
+
+  ws.on('close', () => {
+    if (ws.mode !== 'party' || !ws.partyId || !ws.peerId) return;
+    const roomPeers = partySignalingPeers.get(ws.partyId);
+    if (roomPeers?.get(ws.peerId) === ws) roomPeers.delete(ws.peerId);
+    roomPeers?.forEach((peer) => {
+      if (peer.readyState === 1) peer.send(JSON.stringify({ type: 'peer-left', peerId: ws.peerId }));
     });
+    if (roomPeers?.size === 0) partySignalingPeers.delete(ws.partyId);
   });
 });
 
