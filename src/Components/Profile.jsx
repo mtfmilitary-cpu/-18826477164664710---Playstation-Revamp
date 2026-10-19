@@ -155,7 +155,7 @@ export default function Profile() {
 
             <section style={{ ...panelStyle, padding: 20, marginBottom: 24 }}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
-                <div><h2 style={{margin:"0 0 6px",fontSize:24}}>All available Steam achievements</h2><p style={{margin:0,color:"rgba(230,237,247,.55)",fontSize:13}}>Checks games with recorded playtime and lists every achievement Steam makes available for your account.</p></div>
+                <div><h2 style={{margin:"0 0 6px",fontSize:24}}>All available Steam achievements</h2><p style={{margin:0,color:"rgba(230,237,247,.55)",fontSize:13}}>Checks your owned Steam games and lists every achievement Steam makes available for your account.</p></div>
                 <button className="steam-button" onClick={loadAllAchievements} disabled={achievementsLoading}><Trophy size={16}/>{achievementsLoading ? "Checking games…" : allAchievements ? "Refresh achievements" : "Load all achievements"}</button>
               </div>
               {achievementsError && <p className="steam-notice steam-notice-error" role="alert">{achievementsError}</p>}
