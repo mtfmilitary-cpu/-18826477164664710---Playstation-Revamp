@@ -37,7 +37,34 @@ async function createWindow() {
   });
 
   const devUrl = process.env.ELECTRON_RENDERER_URL;
-  await mainWindow.loadURL(devUrl || "http://127.0.0.1:3000");
+  const targetUrl = devUrl || "http://127.0.0.1:3000";
+  diagnostic("ELECTRON-WINDOW-0001", "Console window created.", null, "INFO", {
+    devMode: Boolean(devUrl), platform: process.platform,
+  });
+  mainWindow.on("close", () => {
+    diagnostic("ELECTRON-WINDOW-0002", "Console window close requested.", null, "INFO");
+  });
+  mainWindow.on("closed", () => {
+    diagnostic("ELECTRON-WINDOW-0003", "Console window closed.", null, "INFO");
+    mainWindow = null;
+  });
+  mainWindow.webContents.on("did-fail-load", (_event, errorCode, _description, validatedURL, isMainFrame) => {
+    if (errorCode === -3) return;
+    diagnostic("ELECTRON-LOAD-0001", "A page or resource failed to load.", null, "ERROR", {
+      errorCode, isMainFrame: Boolean(isMainFrame),
+      localPage: isTrustedLocalUrl(validatedURL),
+    });
+  });
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    diagnostic("ELECTRON-RENDERER-0001", "Electron renderer process exited unexpectedly.", null, "FATAL", {
+      reason: String(details?.reason || "unknown").slice(0, 80),
+      exitCode: Number.isInteger(details?.exitCode) ? details.exitCode : null,
+    });
+  });
+  await mainWindow.loadURL(targetUrl);
+  diagnostic("ELECTRON-LOAD-0002", "Console page loaded.", null, "INFO", {
+    localPage: isTrustedLocalUrl(targetUrl),
+  });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("https://store.steampowered.com/") ||
@@ -67,12 +94,18 @@ app.whenReady().then(async () => {
   }
   diagnostic("DIAG-0000", `Diagnostic logging is active. Log file: ${diagnosticLogPath}`, null, "INFO");
   // Scroll Lock is a global console hotkey, including while a Steam game is foregrounded.
-  globalShortcut.register("ScrollLock", () => {
-    if (!mainWindow || mainWindow.isDestroyed()) return;
+  const registered = globalShortcut.register("ScrollLock", () => {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      diagnostic("ELECTRON-HOTKEY-0002", "Quick-menu hotkey pressed while the window was unavailable.", null, "WARN");
+      return;
+    }
+    diagnostic("ELECTRON-HOTKEY-0001", "Quick-menu hotkey activated.", null, "INFO");
     mainWindow.show();
     mainWindow.focus();
     mainWindow.webContents.send("console:quick-menu-toggle");
   });
+  diagnostic("ELECTRON-HOTKEY-0003", registered ? "Quick-menu hotkey registered." : "Quick-menu hotkey registration failed.", null, registered ? "INFO" : "WARN");
+
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -90,6 +123,32 @@ process.on("unhandledRejection", (reason) => {
   diagnostic("ELECTRON-PROMISE-0001", "Unhandled promise rejection in Electron main process.", reason instanceof Error ? reason : new Error(String(reason)), "ERROR");
 });
 
+
+const rendererDiagnosticCodes = new Set([
+  "RENDERER-0001",
+  "RENDERER-PROMISE-0001",
+  "RENDERER-BOOT-0001",
+  "RENDERER-BOOT-0002",
+  "RENDERER-ASSET-0001",
+  "RENDERER-ASSET-0002",
+  "RENDERER-API-0001",
+]);
+
+ipcMain.handle("console:renderer-diagnostic", (event, entry) => {
+  if (!isTrustedLocalUrl(event.senderFrame?.url || "")) return false;
+  if (!entry || typeof entry !== "object" || !rendererDiagnosticCodes.has(entry.code)) return false;
+  const clean = (value, max = 300) => String(value || "")
+    .replace(/https?:\/\/[^\s"'<>]+/gi, "[URL REDACTED]")
+    .replace(/\b(key|token|password|secret|authorization)\s*[:=]\s*[^\s,;]+/gi, "$1=[REDACTED]")
+    .slice(0, max);
+  const code = entry.code;
+  const message = clean(entry.message, 240) || "Renderer reported an error.";
+  diagnostic(code, message, null, "ERROR", {
+    name: clean(entry.name, 80),
+    detail: clean(entry.detail, 600),
+  });
+  return true;
+});
 
 ipcMain.handle("console:power-action", async (_event, action) => {
   const labels = { sleep: "Sleep", restart: "Restart", shutdown: "Shut down" };
@@ -115,8 +174,21 @@ ipcMain.handle("console:power-action", async (_event, action) => {
   return { message: labels[action] + " requested." };
 });
 
-app.on("will-quit", () => globalShortcut.unregisterAll());
-
+app.on("before-quit", () => {
+  diagnostic("ELECTRON-LIFECYCLE-0001", "Electron application shutdown requested.", null, "INFO");
+});
+app.on("will-quit", () => {
+  diagnostic("ELECTRON-LIFECYCLE-0002", "Electron application is quitting.", null, "INFO");
+  globalShortcut.unregisterAll();
+});
 app.on("window-all-closed", () => {
+  diagnostic("ELECTRON-LIFECYCLE-0003", "All Electron windows are closed.", null, "INFO");
   if (process.platform !== "darwin") app.quit();
+});
+app.on("child-process-gone", (_event, details) => {
+  diagnostic("ELECTRON-CHILD-0001", "An Electron child process exited.", null, "ERROR", {
+    type: String(details?.type || "unknown").slice(0, 60),
+    reason: String(details?.reason || "unknown").slice(0, 80),
+    exitCode: Number.isInteger(details?.exitCode) ? details.exitCode : null,
+  });
 });
