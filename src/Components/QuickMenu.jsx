@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AudioLines, Gamepad2, Headphones, Moon, Music2, Power, Settings2, Trophy, Users, X, RefreshCw, Volume2, Mic, Plus, LogOut } from "lucide-react";
 import PeerCallPanel from "./PeerCallPanel";
@@ -17,6 +17,8 @@ const items = [
 export default function QuickMenu() {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState("sound");
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
   const [notice, setNotice] = useState("");
   const [profile, setProfile] = useState(null);
   const [devices, setDevices] = useState({ inputs: [], outputs: [] });
@@ -119,20 +121,23 @@ export default function QuickMenu() {
         else if (rising(15) || (pad.axes[0] > 0.65 && timestamp - lastMoveAt > 180)) direction = "right";
         if (direction && timestamp - lastMoveAt > 120) {
           lastMoveAt = timestamp;
-          const currentIndex = Math.max(0, items.findIndex((item) => item.id === selected));
+          const currentIndex = Math.max(0, items.findIndex((item) => item.id === selectedRef.current));
           const delta = direction === "up" || direction === "left" ? -1 : 1;
           const nextIndex = (currentIndex + delta + items.length) % items.length;
           setSelected(items[nextIndex].id);
           document.querySelectorAll(".quick-menu-item")[nextIndex]?.focus({ preventScroll: true });
         }
-        if (rising(0)) { const item = items.find((candidate) => candidate.id === selected); if (item) activate(item); }
+        if (rising(0)) {
+          const currentIndex = items.findIndex((item) => item.id === selectedRef.current);
+          document.querySelectorAll(".quick-menu-item")[Math.max(0, currentIndex)]?.click();
+        }
         if (rising(1) || rising(8)) closeMenu();
       }
       frameId = requestAnimationFrame(loop);
     };
     frameId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frameId);
-  }, [open, selected, closeMenu]);
+  }, [open, closeMenu]);
   useEffect(() => {
     if (!open) return;
     const firstItem = document.querySelector(".quick-menu-item");
