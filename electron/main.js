@@ -232,6 +232,13 @@ ipcMain.handle("console:renderer-diagnostic", (event, entry) => {
   return true;
 });
 
+ipcMain.handle("console:open-bluetooth-settings", async (event) => {
+  if (!isTrustedLocalUrl(event.senderFrame?.url || "")) return false;
+  if (process.platform !== "win32") throw new Error("Windows Bluetooth settings are only available on Windows.");
+  await shell.openExternal("ms-settings:bluetooth");
+  return true;
+});
+
 ipcMain.handle("console:quick-menu-hide", (event) => {
   try {
     if (!isTrustedLocalUrl(event.senderFrame?.url || "") || new URL(event.senderFrame.url).pathname !== "/overlay") return false;
