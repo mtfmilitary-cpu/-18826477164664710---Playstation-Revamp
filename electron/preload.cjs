@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld("consoleBridge", Object.freeze({
   runtime: "electron",
   platform: process.platform,
   onQuickMenuToggle,
+  toggleQuickMenu: () => ipcRenderer.invoke("console:toggle-quick-menu"),
   onNavigate,
   hideQuickMenu: () => ipcRenderer.invoke("console:quick-menu-hide"),
   openMainRoute: (route) => ipcRenderer.invoke("console:open-main-route", route),
