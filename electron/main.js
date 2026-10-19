@@ -242,9 +242,24 @@ ipcMain.handle("console:controller-stack-status", async (event) => {
   try {
     const { stdout } = await execFileAsync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { windowsHide: true, timeout: 5000 });
     const result = JSON.parse(stdout.trim());
-    const localDs4 = path.join(process.env.LOCALAPPDATA || "", "DS4Windows", "DS4Windows.exe");
-    const programDs4 = path.join(process.env.ProgramFiles || "C:\\Program Files", "DS4Windows", "DS4Windows.exe");
-    const ds4WindowsPath = fs.existsSync(localDs4) ? localDs4 : (fs.existsSync(programDs4) ? programDs4 : null);
+    const localDs4Root = path.join(process.env.LOCALAPPDATA || "", "DS4Windows");
+    const programDs4Root = path.join(process.env.ProgramFiles || "C:\\Program Files", "DS4Windows");
+    const findDs4Executable = (root) => {
+      if (!fs.existsSync(root)) return null;
+      const pending = [root];
+      while (pending.length) {
+        const current = pending.pop();
+        let entries = [];
+        try { entries = fs.readdirSync(current, { withFileTypes: true }); } catch { continue; }
+        for (const entry of entries) {
+          const fullPath = path.join(current, entry.name);
+          if (entry.isFile() && entry.name.toLowerCase() === "ds4windows.exe") return fullPath;
+          if (entry.isDirectory()) pending.push(fullPath);
+        }
+      }
+      return null;
+    };
+    const ds4WindowsPath = findDs4Executable(localDs4Root) || findDs4Executable(programDs4Root);
     return { supported: true, ds4WindowsRunning: Boolean(result.ds4WindowsRunning), ds4WindowsInstalled: Boolean(ds4WindowsPath), ds4WindowsPath, vigemBusInstalled: Boolean(result.vigemBusInstalled), vigemBusState: String(result.vigemBusState || "Unknown"), modernBackendInstalled: Boolean(result.modernBackendInstalled), modernBackendState: String(result.modernBackendState || "Unknown") };
   } catch (error) {
     diagnostic("CONTROLLER-STACK-0001", "Could not inspect the DS4Windows and ViGEmBus status.", error, "WARN");
