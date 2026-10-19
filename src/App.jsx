@@ -6,6 +6,7 @@ import {
   Route,
   Navigate,
   useLocation,
+  useNavigate,
 } from "react-router-dom";
 import HomeDashboard from "./Components/HomeDashboard";
 import FriendsPage from "./Components/FriendsPage";
