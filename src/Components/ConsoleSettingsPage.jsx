@@ -204,8 +204,6 @@ export default function ConsoleSettingsPage() {
         </div>
         {powerMessage && <p className="console-settings-message"><AlertTriangle size={16} />{powerMessage}</p>}
       </section>
-    </main>
-
       {controllerToast && (
         <aside className={`controller-setup-toast ${controllerToast.kind === "success" ? "success" : controllerToast.kind === "error" ? "error" : ""}`} role="status" aria-live="polite">
           <div className="controller-setup-toast-icon">{controllerToast.kind === "success" ? <CheckCircle2 size={21}/> : controllerToast.kind === "error" ? <AlertTriangle size={21}/> : <ShieldCheck size={21}/>}</div>
@@ -213,5 +211,6 @@ export default function ConsoleSettingsPage() {
           <button type="button" aria-label="Dismiss notification" onClick={() => setControllerToast(null)}><X size={16}/></button>
         </aside>
       )}
+    </main>
   );
 }
