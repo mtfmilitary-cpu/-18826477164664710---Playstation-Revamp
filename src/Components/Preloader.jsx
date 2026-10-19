@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 // Keep this filename aligned with the existing Steam Big Picture intro in public/.
-const STARTUP_VIDEO = "/bigpicture_startup.webm";
+const STARTUP_VIDEOS = ["/bigpicture_startup.webm", "/preloader.mp4"];
 const FADE_MS = 700;
 const FALLBACK_MS = 12000;
 
 const Preloader = ({ onComplete }) => {
   const [fading, setFading] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
+  const [videoIndex, setVideoIndex] = useState(0);
   const completedRef = useRef(false);
   const fadeTimerRef = useRef(null);
 
@@ -66,7 +67,7 @@ const Preloader = ({ onComplete }) => {
           onError={handleVideoError}
           onAbort={handleVideoError}
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          src={STARTUP_VIDEO}
+          src={STARTUP_VIDEOS[videoIndex]}
         />
       ) : (
         <div style={{ width: "100%", height: "100%", background: "#070a12" }} />
