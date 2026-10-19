@@ -28,6 +28,7 @@ export default function Profile() {
   const [allAchievements, setAllAchievements] = useState(null);
   const [achievementsLoading, setAchievementsLoading] = useState(false);
   const [achievementsError, setAchievementsError] = useState("");
+  const [achievementsAttempted, setAchievementsAttempted] = useState(false);
 
   const loadProfile = useCallback(async () => {
     setLoading(true); setError("");
@@ -44,6 +45,7 @@ export default function Profile() {
   useEffect(() => { loadProfile(); }, [loadProfile]);
 
   async function loadAllAchievements() {
+    setAchievementsAttempted(true);
     setAchievementsLoading(true);
     setAchievementsError("");
     try {
@@ -55,6 +57,12 @@ export default function Profile() {
       setAchievementsError(err.message || "Steam achievements could not be loaded.");
     } finally { setAchievementsLoading(false); }
   }
+
+  useEffect(() => {
+    if (profile?.connected && Array.isArray(profile.ownedGames) && !achievementsAttempted && !achievementsLoading) {
+      loadAllAchievements();
+    }
+  }, [profile, achievementsAttempted, achievementsLoading]);
 
   async function openGame(game) {
     setSelectedGame(game); setDetails(null); setActionMessage(""); setDetailsLoading(true);
@@ -96,7 +104,7 @@ export default function Profile() {
   const stats = [
     { label: "Total playtime", value: hoursLabel(profile?.totalHours), icon: Clock3 },
     { label: "Games owned", value: prettyNumber(profile?.games), icon: Gamepad2 },
-    { label: "Achievements unlocked", value: allAchievements ? `${prettyNumber(allAchievements.unlocked)} / ${prettyNumber(allAchievements.total)}` : profile?.achievementsUnlocked == null ? "Load below" : prettyNumber(profile.achievementsUnlocked), icon: Trophy },
+    { label: "Achievements unlocked", value: allAchievements ? `${prettyNumber(allAchievements.unlocked)} / ${prettyNumber(allAchievements.total)}` : achievementsLoading ? "Loading…" : profile?.achievementsUnlocked == null ? "Unavailable" : prettyNumber(profile.achievementsUnlocked), icon: Trophy },
     { label: "Friends", value: prettyNumber(profile?.friends), icon: Users },
     { label: "Steam level", value: prettyNumber(profile?.level), icon: ShieldCheck },
   ];
