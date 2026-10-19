@@ -77,15 +77,21 @@ export default function ConsoleSounds() {
     const onClick = (event) => {
       if (interactiveFrom(event.target)) play("select");
     };
+    const onControllerHover = () => play("hover");
+    const onControllerSelect = () => play("select");
     document.addEventListener("pointerover", onPointerOver, true);
     document.addEventListener("pointerout", onPointerOut, true);
     document.addEventListener("focusin", onFocus, true);
     document.addEventListener("click", onClick, true);
+    window.addEventListener("console:sound-hover", onControllerHover);
+    window.addEventListener("console:sound-select", onControllerSelect);
     return () => {
       document.removeEventListener("pointerover", onPointerOver, true);
       document.removeEventListener("pointerout", onPointerOut, true);
       document.removeEventListener("focusin", onFocus, true);
       document.removeEventListener("click", onClick, true);
+      window.removeEventListener("console:sound-hover", onControllerHover);
+      window.removeEventListener("console:sound-select", onControllerSelect);
     };
   }, []);
 
