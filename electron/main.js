@@ -235,6 +235,31 @@ ipcMain.handle("console:renderer-diagnostic", (event, entry) => {
   return true;
 });
 
+ipcMain.handle("console:controller-stack-status", async (event) => {
+  if (!isTrustedLocalUrl(event.senderFrame?.url || "")) return { supported: false, ds4WindowsRunning: false, vigemBusInstalled: false, error: "Untrusted renderer." };
+  if (process.platform !== "win32") return { supported: false, ds4WindowsRunning: false, vigemBusInstalled: false, error: "Controller driver checks are available on Windows only." };
+  const script = "$p = Get-Process -Name 'DS4Windows' -ErrorAction SilentlyContinue | Select-Object -First 1; $d = Get-CimInstance Win32_SystemDriver -Filter \"Name='ViGEmBus'\" -ErrorAction SilentlyContinue; [pscustomobject]@{ ds4WindowsRunning = [bool]$p; vigemBusInstalled = [bool]$d; vigemBusState = if ($d) { [string]$d.State } else { 'NotFound' } } | ConvertTo-Json -Compress";
+  try {
+    const { stdout } = await execFileAsync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { windowsHide: true, timeout: 5000 });
+    const result = JSON.parse(stdout.trim());
+    return { supported: true, ds4WindowsRunning: Boolean(result.ds4WindowsRunning), vigemBusInstalled: Boolean(result.vigemBusInstalled), vigemBusState: String(result.vigemBusState || "Unknown") };
+  } catch (error) {
+    diagnostic("CONTROLLER-STACK-0001", "Could not inspect the DS4Windows and ViGEmBus status.", error, "WARN");
+    return { supported: true, ds4WindowsRunning: false, vigemBusInstalled: false, vigemBusState: "Check failed", error: "Windows could not check the controller software. Try running the console again." };
+  }
+});
+
+ipcMain.handle("console:open-controller-guide", async (event, guide) => {
+  if (!isTrustedLocalUrl(event.senderFrame?.url || "")) return false;
+  const urls = {
+    ds4windows: "https://github.com/ds4windowsapp/DS4Windows",
+    vigembus: "https://github.com/nefarius/ViGEmBus",
+  };
+  if (!Object.hasOwn(urls, guide)) return false;
+  await shell.openExternal(urls[guide]);
+  return true;
+});
+
 ipcMain.handle("console:open-bluetooth-settings", async (event) => {
   if (!isTrustedLocalUrl(event.senderFrame?.url || "")) return false;
   if (process.platform !== "win32") throw new Error("Windows Bluetooth settings are only available on Windows.");
