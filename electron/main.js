@@ -242,13 +242,64 @@ ipcMain.handle("console:controller-stack-status", async (event) => {
   try {
     const { stdout } = await execFileAsync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { windowsHide: true, timeout: 5000 });
     const result = JSON.parse(stdout.trim());
-    return { supported: true, ds4WindowsRunning: Boolean(result.ds4WindowsRunning), vigemBusInstalled: Boolean(result.vigemBusInstalled), vigemBusState: String(result.vigemBusState || "Unknown"), modernBackendInstalled: Boolean(result.modernBackendInstalled), modernBackendState: String(result.modernBackendState || "Unknown") };
+    const localDs4 = path.join(process.env.LOCALAPPDATA || "", "DS4Windows", "DS4Windows.exe");
+    const programDs4 = path.join(process.env.ProgramFiles || "C:\\Program Files", "DS4Windows", "DS4Windows.exe");
+    const ds4WindowsPath = fs.existsSync(localDs4) ? localDs4 : (fs.existsSync(programDs4) ? programDs4 : null);
+    return { supported: true, ds4WindowsRunning: Boolean(result.ds4WindowsRunning), ds4WindowsInstalled: Boolean(ds4WindowsPath), ds4WindowsPath, vigemBusInstalled: Boolean(result.vigemBusInstalled), vigemBusState: String(result.vigemBusState || "Unknown"), modernBackendInstalled: Boolean(result.modernBackendInstalled), modernBackendState: String(result.modernBackendState || "Unknown") };
   } catch (error) {
     diagnostic("CONTROLLER-STACK-0001", "Could not inspect the DS4Windows and ViGEmBus status.", error, "WARN");
     return { supported: true, ds4WindowsRunning: false, vigemBusInstalled: false, vigemBusState: "Check failed", modernBackendInstalled: false, modernBackendState: "Check failed", error: "Windows could not check the controller software. Try running the console again." };
   }
 });
 
+ipcMain.handle("console:install-controller-stack", async (event) => {
+  if (!isTrustedLocalUrl(event.senderFrame?.url || "")) throw new Error("Untrusted renderer.");
+  if (process.platform !== "win32") throw new Error("Controller setup is only available on Windows.");
+  const confirmation = await dialog.showMessageBox(mainWindow, {
+    type: "warning",
+    title: "Install DualShock 4 controller support?",
+    message: "Install DS4Windows and the ViGEmBus virtual-controller driver?",
+    detail: "This downloads DS4Windows 4.0.2.3 and the archived ViGEmBus 1.22.0 installer from their published GitHub release assets, checks their SHA-256 hashes, extracts DS4Windows, and launches the driver installer after Windows administrator approval. ViGEmBus is retired software. Continue only if you want this classic DS4Windows setup.",
+    buttons: ["Cancel", "Continue to administrator prompt"], defaultId: 0, cancelId: 0, noLink: true,
+  });
+  if (confirmation.response !== 1) return { cancelled: true };
+  const tempRoot = path.join(app.getPath("temp"), "console-controller-setup");
+  fs.mkdirSync(tempRoot, { recursive: true });
+  const scriptPath = path.join(projectRoot, "scripts", "install-controller-stack.ps1");
+  if (!fs.existsSync(scriptPath)) throw new Error("Controller installer script is missing. Update the project and try again.");
+  const progressPath = path.join(tempRoot, "progress.json");
+  const resultPath = path.join(tempRoot, "result.json");
+  for (const file of [progressPath, resultPath]) { try { fs.unlinkSync(file); } catch {} }
+  const sendProgress = (progress) => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("console:controller-setup-progress", progress); };
+  sendProgress({ stage: "approval", title: "Waiting for administrator approval", message: "Approve the Windows UAC prompt to continue installing the driver.", kind: "info" });
+  const quote = (value) => String(value).replace(/'/g, "''");
+  const argLine = "-NoProfile -ExecutionPolicy Bypass -File \"" + scriptPath + "\" -ProgressPath \"" + progressPath + "\" -ResultPath \"" + resultPath + "\"";
+  const parentCommand = "$p = Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList '" + argLine.replace(/'/g, "''") + "' -Wait -PassThru; exit $p.ExitCode";
+  let lastProgress = "";
+  const poller = setInterval(() => {
+    try {
+      const progress = JSON.parse(fs.readFileSync(progressPath, "utf8"));
+      const fingerprint = [progress.stage, progress.title, progress.message].join("|");
+      if (fingerprint !== lastProgress) { lastProgress = fingerprint; sendProgress(progress); }
+    } catch {}
+  }, 500);
+  try {
+    await execFileAsync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", parentCommand], { windowsHide: true, timeout: 15 * 60 * 1000, maxBuffer: 1024 * 1024 });
+    let result = {};
+    try { result = JSON.parse(fs.readFileSync(resultPath, "utf8")); } catch {}
+    if (!result.success) throw new Error(result.error || "The installer finished without a successful validation result.");
+    sendProgress({ stage: "complete", title: "Controller support installed", message: result.message || "Controller support is installed. Try out the controller system now.", kind: "success" });
+    diagnostic("CONTROLLER-SETUP-0002", "DS4Windows and ViGEmBus setup completed and validation passed.", null, "INFO");
+    return result;
+  } catch (error) {
+    let result = {};
+    try { result = JSON.parse(fs.readFileSync(resultPath, "utf8")); } catch {}
+    const message = result.error || "Controller setup was cancelled, failed, or interrupted. If you cancelled the Windows administrator prompt, no installation was authorized.";
+    sendProgress({ stage: "failed", title: "Controller setup did not finish", message, kind: "error" });
+    diagnostic("CONTROLLER-SETUP-0003", "DS4Windows and ViGEmBus setup did not complete successfully.", error, "WARN");
+    throw new Error(message);
+  } finally { clearInterval(poller); }
+});
 ipcMain.handle("console:open-controller-guide", async (event, guide) => {
   if (!isTrustedLocalUrl(event.senderFrame?.url || "")) return false;
   const urls = {
