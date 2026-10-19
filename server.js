@@ -130,8 +130,8 @@ function getLocalSteamAccount() {
   if (process.platform === 'win32') {
     try {
       const output = execFileSync('reg.exe', ['query', 'HKCU\\Software\\Valve\\Steam', '/v', 'SteamPath'], { encoding: 'utf8', windowsHide: true });
-      const match = output.match(/SteamPath\\s+REG_SZ\\s+(.+)/i);
-      if (match?.[1]) candidates.push(match[1].trim().replace(/\\//g, '\\\\'));
+      const match = output.match(/SteamPath\s+REG_SZ\s+(.+)/i);
+      if (match?.[1]) candidates.push(match[1].trim().replaceAll('/', '\\'));
     } catch {}
     candidates.push(path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'Steam'));
     candidates.push(path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Steam'));
@@ -143,9 +143,9 @@ function getLocalSteamAccount() {
   for (const root of candidates) {
     try {
       const raw = fs.readFileSync(path.join(root, 'config', 'loginusers.vdf'), 'utf8');
-      const entries = [...raw.matchAll(/"([0-9]{17})"\\s*\\{([^{}]*)\\}/g)].map((match) => {
+      const entries = [...raw.matchAll(/"([0-9]{17})"\s*\{([^{}]*)\}/g)].map((match) => {
         const body = match[2];
-        const field = (name) => body.match(new RegExp('"' + name + '"\\\\s*"([^"]*)"', 'i'))?.[1] || '';
+        const field = (name) => body.match(new RegExp('"' + name + '"\\s*"([^"]*)"', 'i'))?.[1] || '';
         return { steamId: match[1], accountName: field('AccountName'), personaName: field('PersonaName'), mostRecent: field('MostRecent') === '1' };
       });
       const account = entries.find((entry) => entry.mostRecent) || entries[0];
