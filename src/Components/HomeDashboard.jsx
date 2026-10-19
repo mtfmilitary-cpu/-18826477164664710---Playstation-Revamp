@@ -37,9 +37,7 @@ const SquareIcon = ({ size = 16, color = "white" }) => (
 
 /* PS Logo */
 const PSLogoMini = () => (
-    <svg width="28" height="20" viewBox="0 0 100 70" fill="white">
-        <path d="M38.5 0v54.3l13.3 4.5V13.6c0-2.8 1.2-4 3-3.4 2.1.7 2.6 2.8 2.6 5.6v10.1c9.8 3.4 17.3 0 17.3-14-.1-13.4-8.4-18.6-19.5-14.1L38.5 0zM38.5 55.9L17.7 63.7l14.6-5.7v-9L4 60.2C-1.4 62.3.4 67.8 8 70c7.9 2.3 17.3 1.8 25-1.2L38.5 66v-10.1zM83.5 27.7c-7.9-2.3-17.3-1.8-25 1.2L38.5 31.7v9.2l21.1-7.9c2.8-1 5.2-.2 5.2 2.8 0 2.8-2 4.8-5.2 5.8L38.5 47.4v10.1l16.5-6.8c12.9-5.3 28.5-15.1 28.5-23z" />
-    </svg>
+    <img src="https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg" alt="Steam" style={{ width: 28, height: 28, filter: "brightness(0) invert(1)" }} />
 );
 
 /* Settings gear */
