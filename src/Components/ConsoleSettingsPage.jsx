@@ -11,8 +11,10 @@ export default function ConsoleSettingsPage() {
   });
   const [powerMessage, setPowerMessage] = useState("");
   const [controllerInfo, setControllerInfo] = useState(null);
+  const [controllerStack, setControllerStack] = useState(null);
 
   useEffect(() => {
+    window.consoleBridge?.getControllerStackStatus?.().then(setControllerStack).catch(() => setControllerStack({ supported: false, error: "Could not check DS4Windows status." }));
     const refreshController = () => {
       const pads = Array.from(navigator.getGamepads?.() || []).filter((pad) => pad?.connected);
       const pad = pads.find((candidate) => /dualshock|wireless controller|sony/i.test(candidate.id)) || pads[0] || null;
@@ -123,6 +125,19 @@ export default function ConsoleSettingsPage() {
           <span className={controllerInfo ? "console-controller-status connected" : "console-controller-status"}>{controllerInfo ? "Connected" : "Not detected"}</span>
         </div>
         {controllerInfo && <div className="console-settings-row"><div><strong>Input mapping</strong><p>{controllerInfo.mapping === "standard" ? "Standard gamepad mapping is available." : "Windows exposed a non-standard mapping; some button labels may differ."}</p></div><span>{controllerInfo.buttons} buttons · {controllerInfo.axes} axes</span></div>}
+        <div className="console-settings-row">
+          <div><strong>DS4Windows</strong><p>{controllerStack?.supported === false ? (controllerStack.error || "Run the desktop app on Windows to check this.") : controllerStack?.ds4WindowsRunning ? "DS4Windows is running." : "DS4Windows was not detected as running."}</p></div>
+          <span className={controllerStack?.ds4WindowsRunning ? "console-controller-status connected" : "console-controller-status"}>{controllerStack?.ds4WindowsRunning ? "Running" : "Not running"}</span>
+        </div>
+        <div className="console-settings-row">
+          <div><strong>ViGEmBus driver</strong><p>{controllerStack?.vigemBusInstalled ? "Driver service detected (" + (controllerStack.vigemBusState || "state unknown") + ")." : "ViGEmBus was not detected. This check does not install or repair drivers."}</p></div>
+          <span className={controllerStack?.vigemBusInstalled ? "console-controller-status connected" : "console-controller-status"}>{controllerStack?.vigemBusInstalled ? "Detected" : "Not detected"}</span>
+        </div>
+        <div className="console-settings-sound-tests">
+          <button className="console-settings-button secondary" onClick={() => window.consoleBridge?.getControllerStackStatus?.().then(setControllerStack).catch(() => setControllerStack({ supported: false, error: "Could not check DS4Windows status." }))}><RefreshCw size={16}/> Check DS4Windows / ViGEmBus</button>
+          <button className="console-settings-button secondary" onClick={() => window.consoleBridge?.openControllerGuide?.("ds4windows").catch((error) => setPowerMessage(error.message || "Could not open DS4Windows guide."))}>DS4Windows guide</button>
+          <button className="console-settings-button secondary" onClick={() => window.consoleBridge?.openControllerGuide?.("vigembus").catch((error) => setPowerMessage(error.message || "Could not open ViGEmBus page."))}>ViGEmBus project</button>
+        </div>
         <div className="console-settings-sound-tests">
           <button className="console-settings-button secondary" onClick={() => {
             const pads = Array.from(navigator.getGamepads?.() || []).filter((pad) => pad?.connected);
@@ -131,7 +146,7 @@ export default function ConsoleSettingsPage() {
           }}><RefreshCw size={16}/> Refresh controller</button>
           <button className="console-settings-button secondary" onClick={() => window.consoleBridge?.openBluetoothSettings?.().catch((error) => setPowerMessage(error.message || "Could not open Bluetooth settings."))}><Bluetooth size={16}/> Windows Bluetooth settings</button>
         </div>
-        <p className="console-settings-audio-note"><Cable size={14} style={{display:"inline",verticalAlign:"middle"}}/> USB: connect the controller with a data-capable USB cable. <Bluetooth size={14} style={{display:"inline",verticalAlign:"middle"}}/> Bluetooth: pair it in Windows, then press a controller button so the app can detect it. The console uses Windows' gamepad driver and standard button mapping; per-game remapping and advanced haptics are not implemented yet.</p>
+        <p className="console-settings-audio-note"><Cable size={14} style={{display:"inline",verticalAlign:"middle"}}/> USB: connect the controller with a data-capable USB cable. <Bluetooth size={14} style={{display:"inline",verticalAlign:"middle"}}/> Bluetooth: pair it in Windows, then press a controller button so the app can detect it. The console uses the gamepad input Windows exposes to Chromium. Classic DS4Windows can map a DualShock 4 to a virtual Xbox controller; per-game remapping and advanced haptics are not implemented here. ViGEmBus is archived, so review the driver notes before installing legacy components.</p>
       </section>
 
       <section className="console-settings-section">
