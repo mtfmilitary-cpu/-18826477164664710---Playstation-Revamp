@@ -44,7 +44,7 @@ export default function Profile() {
 
   useEffect(() => { loadProfile(); }, [loadProfile]);
 
-  async function loadAllAchievements() {
+  const loadAllAchievements = useCallback(async () => {
     setAchievementsAttempted(true);
     setAchievementsLoading(true);
     setAchievementsError("");
@@ -56,13 +56,13 @@ export default function Profile() {
     } catch (err) {
       setAchievementsError(err.message || "Steam achievements could not be loaded.");
     } finally { setAchievementsLoading(false); }
-  }
+  }, []);
 
   useEffect(() => {
     if (profile?.connected && Array.isArray(profile.ownedGames) && !achievementsAttempted && !achievementsLoading) {
       loadAllAchievements();
     }
-  }, [profile, achievementsAttempted, achievementsLoading]);
+  }, [profile, achievementsAttempted, achievementsLoading, loadAllAchievements]);
 
   async function openGame(game) {
     setSelectedGame(game); setDetails(null); setActionMessage(""); setDetailsLoading(true);
