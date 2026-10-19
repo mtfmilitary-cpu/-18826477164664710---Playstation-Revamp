@@ -18,7 +18,6 @@ export default function PartyChatPage() {
   const [invite, setInvite] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [muted, setMuted] = useState(false);
 
   const request = useCallback(async (url, options = {}) => {
     const response = await fetch(url, { ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } });
@@ -114,7 +113,7 @@ export default function PartyChatPage() {
           <form className="party-invite-form" onSubmit={sendInvite}><input value={invite} onChange={e => setInvite(e.target.value)} placeholder="Friend's username to invite" maxLength={32}/><button className="social-secondary" disabled={!invite.trim()}>Invite</button></form>
           <div className="party-messages" aria-live="polite">{party.messages.map(item => <article className={item.username === username ? "party-message own" : "party-message"} key={item.id}><div><strong>{item.username}</strong><time>{new Date(item.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time></div><p>{item.text}</p></article>)}</div>
           <form className="party-send-form" onSubmit={sendMessage}><input value={message} onChange={e => setMessage(e.target.value)} placeholder="Message your party…" maxLength={1000}/><button className="social-primary" disabled={!message.trim()} aria-label="Send message"><Send size={17}/></button></form>
-          <div className="party-voice-note"><button type="button" className="social-secondary" onClick={() => setMuted(v => !v)}><Mic size={15}/>{muted ? "Mic setting: muted" : "Mic setting: unmuted"}</button><span><MicOff size={14}/> Text chat is live; voice transmission is not implemented yet.</span></div>
+          <div className="party-voice-note"><button type="button" className="social-secondary" disabled><Mic size={15}/> Voice chat not connected</button><span><MicOff size={14}/> Text chat is working; live voice audio still needs to be implemented.</span></div>
         </>}
       </section>
     </div>
