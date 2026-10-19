@@ -129,6 +129,7 @@ const rendererDiagnosticCodes = new Set([
   "RENDERER-PROMISE-0001",
   "RENDERER-BOOT-0001",
   "RENDERER-BOOT-0002",
+  "RENDERER-BOOT-0003",
   "RENDERER-ASSET-0001",
   "RENDERER-ASSET-0002",
   "RENDERER-API-0001",
@@ -143,7 +144,7 @@ ipcMain.handle("console:renderer-diagnostic", (event, entry) => {
     .slice(0, max);
   const code = entry.code;
   const message = clean(entry.message, 240) || "Renderer reported an error.";
-  diagnostic(code, message, null, "ERROR", {
+  diagnostic(code, message, null, code === "RENDERER-BOOT-0003" ? "INFO" : "ERROR", {
     name: clean(entry.name, 80),
     detail: clean(entry.detail, 600),
   });
