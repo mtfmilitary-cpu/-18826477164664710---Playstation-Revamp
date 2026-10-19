@@ -1,5 +1,12 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+function onNavigate(callback) {
+  if (typeof callback !== "function") return () => {};
+  const listener = (_event, route) => callback(route);
+  ipcRenderer.on("console:navigate", listener);
+  return () => ipcRenderer.removeListener("console:navigate", listener);
+}
+
 function onQuickMenuToggle(callback) {
   if (typeof callback !== "function") return () => {};
   const listener = () => callback();
@@ -12,6 +19,9 @@ contextBridge.exposeInMainWorld("consoleBridge", Object.freeze({
   runtime: "electron",
   platform: process.platform,
   onQuickMenuToggle,
+  onNavigate,
+  hideQuickMenu: () => ipcRenderer.invoke("console:quick-menu-hide"),
+  openMainRoute: (route) => ipcRenderer.invoke("console:open-main-route", route),
   reportDiagnostic: (entry) => {
     if (!entry || typeof entry !== "object") return Promise.resolve(false);
     return ipcRenderer.invoke("console:renderer-diagnostic", {
