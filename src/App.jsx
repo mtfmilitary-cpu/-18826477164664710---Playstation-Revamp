@@ -18,6 +18,8 @@ import Layout from "./Components/Layout";
 import Preloader from "./Components/Preloader";
 import GameLibrary from "./Components/GameLibrary";
 import SubscriptionsPage from "./Components/SubscriptionsPage";
+import SteamStorePage from "./Components/SteamStorePage";
+import SteamLibraryPage from "./Components/SteamLibraryPage";
 
 function App() {
   const [loading, setLoading] = useState(true);
@@ -32,11 +34,11 @@ function App() {
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="/home" element={<HomeDashboard />} />
             <Route path="/media" element={<PSMediaUI />} />
-            <Route path="/store" element={<PSStoreUI />} />
+            <Route path="/store" element={<SteamStorePage />} />
             <Route path="/showcase" element={<ControllerDashboard />} />
             <Route path="/accessories" element={<HardwareStore />} />
             <Route path="/profile" element={<Profile />} />
-            <Route path="/library" element={<GameLibrary />} />
+            <Route path="/library" element={<SteamLibraryPage />} />
             <Route path="/subscriptions" element={<SubscriptionsPage />} />
           </Route>
           {/* The phone controller UI doesn't need the Layout typically, it's a remote */}
