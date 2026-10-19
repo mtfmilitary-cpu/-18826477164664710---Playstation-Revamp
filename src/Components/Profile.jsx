@@ -96,7 +96,7 @@ export default function Profile() {
   const stats = [
     { label: "Total playtime", value: hoursLabel(profile?.totalHours), icon: Clock3 },
     { label: "Games owned", value: prettyNumber(profile?.games), icon: Gamepad2 },
-    { label: "Achievements", value: profile?.achievementsUnlocked == null ? "—" : prettyNumber(profile.achievementsUnlocked), icon: Trophy },
+    { label: "Achievements unlocked", value: allAchievements ? `${prettyNumber(allAchievements.unlocked)} / ${prettyNumber(allAchievements.total)}` : profile?.achievementsUnlocked == null ? "Load below" : prettyNumber(profile.achievementsUnlocked), icon: Trophy },
     { label: "Friends", value: prettyNumber(profile?.friends), icon: Users },
     { label: "Steam level", value: prettyNumber(profile?.level), icon: ShieldCheck },
   ];
