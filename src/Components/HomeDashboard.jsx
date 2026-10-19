@@ -648,8 +648,6 @@ const HomeDashboard = () => {
                             </motion.div>
                         </AnimatePresence>
 
-                        {/* Party Chat — stays bottom-left */}
-                        <ChatOverlay />
                     </div>
 
                     {/* Bottom-RIGHT: Friends Panel + Stats / Progress / Trophies + dots */}
