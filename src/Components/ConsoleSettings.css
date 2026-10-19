@@ -19,3 +19,6 @@
 .controller-setup-toast-copy{flex:1;min-width:0}.controller-setup-toast-copy strong{display:block;font-size:13px}.controller-setup-toast-copy p{margin:5px 0 0;color:#b5c5da;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
 .controller-setup-toast>button{display:flex;border:0;background:transparent;color:#a9b8cb;padding:2px;cursor:pointer}
 @media(max-width:640px){.controller-setup-toast{left:12px;bottom:12px;width:calc(100vw - 24px)}}
+
+/* PS4-inspired Settings layout: restrained rows, cool blue focus, and simple panels. */
+.console-settings-page{background:linear-gradient(180deg,#101b2c 0%,#07101d 58%,#050a12 100%);padding-top:104px}.console-settings-section{border-radius:3px;background:rgba(15,28,45,.76);border:1px solid rgba(128,164,202,.18);box-shadow:0 8px 28px rgba(0,0,0,.16)}.console-settings-section-heading{color:#83baff}.console-settings-row{border-bottom-color:rgba(158,190,225,.13)}.console-settings-row:hover{background:rgba(54,112,177,.1)}.console-settings-row select,.console-settings-row input:not([type=color]){border-radius:2px}.console-settings-button{border-radius:3px}.console-settings-button:focus-visible,.console-settings-row select:focus-visible{outline:2px solid #8cc7ff;outline-offset:3px}
