@@ -412,6 +412,8 @@ const HomeDashboard = () => {
     // Navigation logic for D-Pad — cycles through allGames
     useEffect(() => {
         if (!action) return;
+        if (["DPAD_LEFT", "DPAD_RIGHT", "DPAD_UP", "DPAD_DOWN"].includes(action)) window.dispatchEvent(new Event("console:sound-hover"));
+        if (action === "CROSS") window.dispatchEvent(new Event("console:sound-select"));
         if (!displayGames.length && focusZone === "GAMES" && (action === "DPAD_LEFT" || action === "DPAD_RIGHT")) return;
 
         if (focusZone === "GAMES") {
