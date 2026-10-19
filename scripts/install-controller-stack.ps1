@@ -35,7 +35,7 @@ try {
   if (-not (Test-Path -LiteralPath $ds4Exe)) { throw 'DS4Windows executable was not found after extraction.' }
 
   Set-Stage 'driver' 'Installing ViGEmBus driver' 'Follow the driver setup window to finish installation.'
-  $installer = Start-Process -FilePath $driver -Wait -PassThru
+  $installer = Start-Process -FilePath $driver -Verb RunAs -Wait -PassThru
   if ($installer.ExitCode -notin @(0, 3010)) { throw ('ViGEmBus setup exited with code ' + $installer.ExitCode + '.') }
   $needsRestart = $installer.ExitCode -eq 3010
 
@@ -58,7 +58,10 @@ try {
   $result | ConvertTo-Json -Compress | Set-Content -LiteralPath $ResultPath -Encoding ASCII
   Set-Stage 'complete' 'Controller support installed' 'Controller support is installed. Try out the controller system now.' 'success'
 } catch {
-  @{ success=$false; error=$_.Exception.Message } | ConvertTo-Json -Compress | Set-Content -LiteralPath $ResultPath -Encoding ASCII
-  Set-Stage 'failed' 'Controller setup needs attention' $_.Exception.Message 'error'
+  $failureMessage = $_.Exception.Message
+  $cancelled = $failureMessage -match 'cancel|cancelled|canceled'
+  @{ success=$false; cancelled=$cancelled; error=$failureMessage } | ConvertTo-Json -Compress | Set-Content -LiteralPath $ResultPath -Encoding ASCII
+  if ($cancelled) { Set-Stage 'cancelled' 'Administrator approval cancelled' 'Windows administrator approval was cancelled. The driver was not installed.' 'info' }
+  else { Set-Stage 'failed' 'Controller setup needs attention' $failureMessage 'error' }
   exit 1
 }
