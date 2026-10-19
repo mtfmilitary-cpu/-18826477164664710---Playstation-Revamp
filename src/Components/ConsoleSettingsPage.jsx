@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Monitor, Palette, Power, RotateCcw, Moon, AlertTriangle } from "lucide-react";
+import { Monitor, Palette, Power, RotateCcw, Moon, AlertTriangle, Volume2, MousePointer2, Music2 } from "lucide-react";
 import "./ConsoleSettings.css";
 
-const DEFAULTS = { accent: "#2877dc", font: "Inter", backdrop: "blue" };
+const DEFAULTS = { accent: "#2877dc", font: "Inter", backdrop: "blue", soundsEnabled: true, soundVolume: 50 };
 
 export default function ConsoleSettingsPage() {
   const [settings, setSettings] = useState(() => {
@@ -16,9 +16,24 @@ export default function ConsoleSettingsPage() {
     document.documentElement.style.setProperty("--console-accent", settings.accent);
     document.documentElement.style.setProperty("--font-ui", settings.font === "System" ? "system-ui" : settings.font);
     document.body.dataset.consoleBackdrop = settings.backdrop;
+    window.dispatchEvent(new Event("console-settings-changed"));
   }, [settings]);
 
   function update(key, value) { setSettings((current) => ({ ...current, [key]: value })); }
+
+  async function testSound(file) {
+    if (!settings.soundsEnabled) { setPowerMessage("Enable console sounds first."); return; }
+    try {
+      const response = await fetch("/" + file, { method: "HEAD", cache: "no-store" });
+      if (!response.ok) { setPowerMessage(file + " isn't in the public folder yet. No sound was played."); return; }
+      const audio = new Audio("/" + file);
+      audio.volume = Math.max(0, Math.min(1, Number(settings.soundVolume) / 100));
+      await audio.play();
+      setPowerMessage("Playing " + file + ".");
+    } catch {
+      setPowerMessage("Couldn't play " + file + ". Check the file and browser audio permissions.");
+    }
+  }
 
   async function powerAction(action) {
     if (!window.consoleBridge?.requestPowerAction) {
@@ -56,6 +71,18 @@ export default function ConsoleSettingsPage() {
           <select value={settings.backdrop} onChange={(event) => update("backdrop", event.target.value)}><option value="blue">Deep blue</option><option value="black">Black</option><option value="red">Dark red</option></select>
         </div>
         <button className="console-settings-button secondary" onClick={() => setSettings(DEFAULTS)}><RotateCcw size={16} /> Reset appearance</button>
+      </section>
+
+      <section className="console-settings-section">
+        <div className="console-settings-section-heading"><Volume2 size={20} /><div><h2>Audio & Navigation</h2><p>Optional Steam-style menu sounds. Missing audio files are silently skipped.</p></div></div>
+        <div className="console-settings-row"><div><strong>Interface sounds</strong><p>Play a sound when hovering over controls and selecting buttons.</p></div><label className="console-settings-toggle"><input type="checkbox" checked={settings.soundsEnabled} onChange={(event) => update("soundsEnabled", event.target.checked)}/><span>{settings.soundsEnabled ? "On" : "Off"}</span></label></div>
+        <div className="console-settings-row"><div><strong>Sound volume</strong><p>Controls hover, select, and background audio.</p></div><label className="console-settings-volume"><input type="range" min="0" max="100" step="5" value={settings.soundVolume} onChange={(event) => update("soundVolume", Number(event.target.value))}/><span>{settings.soundVolume}%</span></label></div>
+        <div className="console-settings-sound-tests">
+          <button className="console-settings-button secondary" onClick={() => testSound("Hover_Steam.mp3")}><MousePointer2 size={16}/> Test Hover</button>
+          <button className="console-settings-button secondary" onClick={() => testSound("Select_Stream.mp3")}><Volume2 size={16}/> Test Select</button>
+          <button className="console-settings-button secondary" onClick={() => testSound("Steam_Background.mp3")}><Music2 size={16}/> Test Background</button>
+        </div>
+        <p className="console-settings-audio-note">Place these exact files in the project's <code>public</code> folder: <code>Hover_Steam.mp3</code>, <code>Select_Stream.mp3</code>, and <code>Steam_Background.mp3</code>. The background track loops only on the Games home screen.</p>
       </section>
 
       <section className="console-settings-section">
