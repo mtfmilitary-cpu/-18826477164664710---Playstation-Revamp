@@ -47,7 +47,7 @@ async function createWindow() {
   });
 
   mainWindow.webContents.on("will-navigate", (event, url) => {
-    if (!isTrustedLocalUrl(url) && !url.startsWith("file://")) event.preventDefault();
+    if (!isTrustedLocalUrl(url)) event.preventDefault();
   });
 }
 
@@ -76,7 +76,7 @@ ipcMain.handle("console:power-action", async (_event, action) => {
   });
   if (confirmation.response !== 1) return { cancelled: true };
   if (action === "sleep") {
-    const script = "Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class ConsolePower { [DllImport(\\\"PowrProf.dll\\\", SetLastError=true)] public static extern bool SetSuspendState(bool hibernate, bool forceCritical, bool disableWakeEvent); }'; [ConsolePower]::SetSuspendState($false, $false, $false) | Out-Null";
+    const script = `Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class ConsolePower { [DllImport("PowrProf.dll", SetLastError=true)] public static extern bool SetSuspendState(bool hibernate, bool forceCritical, bool disableWakeEvent); }'; [ConsolePower]::SetSuspendState($false, $false, $false) | Out-Null`;
     await execFileAsync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { windowsHide: true });
   } else {
     await execFileAsync("shutdown.exe", [action === "restart" ? "/r" : "/s", "/t", "0"], { windowsHide: true });
