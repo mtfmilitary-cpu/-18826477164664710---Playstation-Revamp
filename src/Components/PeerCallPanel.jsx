@@ -3,6 +3,13 @@ import { Headphones, Mic, MicOff, PhoneOff, Send, Wifi, WifiOff, Volume2 } from 
 import "./PeerCallPanel.css";
 
 const SIGNAL_PATH = "/party-ws";
+const configuredVoipServer = String(import.meta.env.VITE_VOIP_SERVER_URL || "").trim();
+
+function getSignalingUrl() {
+  if (configuredVoipServer) return configuredVoipServer.replace(/\\/$/, "");
+  const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${scheme}//${window.location.host}${SIGNAL_PATH}`;
+}
 const rtcConfig = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
@@ -136,8 +143,7 @@ export default function PeerCallPanel({ party, username }) {
       for (const pc of peersRef.current.values()) {
         stream.getTracks().forEach((track) => pc.addTrack(track, stream));
       }
-      const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const socket = new WebSocket(`${scheme}//${window.location.host}${SIGNAL_PATH}`);
+      const socket = new WebSocket(getSignalingUrl());
       socketRef.current = socket;
       socket.onopen = () => {
         setConnected(true);
