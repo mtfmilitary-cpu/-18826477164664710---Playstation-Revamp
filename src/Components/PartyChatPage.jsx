@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Headphones, Users, Plus, Send, LogOut, RefreshCw, MessageCircle, Mic, MicOff } from "lucide-react";
+import { Headphones, Users, Plus, LogOut, RefreshCw, MessageCircle } from "lucide-react";
+import PeerCallPanel from "./PeerCallPanel";
 import "./SocialPages.css";
 
 const API = "/api/v1/party";
@@ -111,13 +112,11 @@ export default function PartyChatPage() {
           <div className="party-room-header"><div><p className="social-eyebrow">ACTIVE PARTY</p><h2>{party.name}</h2><p>Hosted by {party.host} · {party.members.length} member{party.members.length === 1 ? "" : "s"}</p></div><button className="social-secondary" onClick={leaveParty}><LogOut size={16}/> Leave</button></div>
           <div className="party-members"><strong><Users size={15}/> Members</strong>{party.members.map((member, index) => <span key={member} className="party-member-pill"><i/>{member}{index === 0 ? " · Host" : ""}</span>)}{party.invites?.map(person => <span key={person} className="party-member-pill invited">{person} · invited</span>)}</div>
           <form className="party-invite-form" onSubmit={sendInvite}><input value={invite} onChange={e => setInvite(e.target.value)} placeholder="Friend's username to invite" maxLength={32}/><button className="social-secondary" disabled={!invite.trim()}>Invite</button></form>
-          <div className="party-messages" aria-live="polite">{party.messages.map(item => <article className={item.username === username ? "party-message own" : "party-message"} key={item.id}><div><strong>{item.username}</strong><time>{new Date(item.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time></div><p>{item.text}</p></article>)}</div>
-          <form className="party-send-form" onSubmit={sendMessage}><input value={message} onChange={e => setMessage(e.target.value)} placeholder="Message your party…" maxLength={1000}/><button className="social-primary" disabled={!message.trim()} aria-label="Send message"><Send size={17}/></button></form>
-          <div className="party-voice-note"><button type="button" className="social-secondary" disabled><Mic size={15}/> Voice chat not connected</button><span><MicOff size={14}/> Text chat is working; live voice audio still needs to be implemented.</span></div>
-        </>}
+          <PeerCallPanel party={party} username={username} />
+         </>}
       </section>
     </div>
     {error && <p className="social-error" role="alert">{error}</p>}
-    <p className="social-note">Party rooms and messages are shared through this console backend and are stored in memory (they reset when the backend restarts). The current backend listens on this PC only, so this is not yet an internet-wide party service.</p>
+    <p className="social-note">Party room invitations and membership are coordinated by the console backend. Voice and P2P chat travel directly between peers after connection. This development build’s signaling server listens on this PC only; internet play needs a public HTTPS/WSS signaling endpoint and a TURN relay for restrictive networks.</p>
   </main>;
 }
