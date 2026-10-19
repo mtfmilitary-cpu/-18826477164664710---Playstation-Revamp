@@ -200,6 +200,7 @@ app.get('/api/v1/profile/me', async (_req, res) => {
       personaName: player.personaname || base.personaName,
       avatar: player.avatarfull || player.avatarmedium || null,
       profileUrl: player.profileurl || base.profileUrl,
+      memberSince: player.timecreated ? new Date(Number(player.timecreated) * 1000).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : null,
       games: gamesPayload.response?.game_count ?? ownedGames.length,
       totalHours: Math.round(totalMinutes / 60),
       friends: friends.length,
