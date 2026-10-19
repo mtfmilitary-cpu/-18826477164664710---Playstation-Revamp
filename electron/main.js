@@ -273,7 +273,7 @@ ipcMain.handle("console:install-controller-stack", async (event) => {
   const resultPath = path.join(tempRoot, "result.json");
   for (const file of [progressPath, resultPath]) { try { fs.unlinkSync(file); } catch {} }
   const sendProgress = (progress) => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("console:controller-setup-progress", progress); };
-  sendProgress({ stage: "approval", title: "Waiting for administrator approval", message: "Approve the Windows UAC prompt to continue installing the driver.", kind: "info" });
+  sendProgress({ stage: "prepare", title: "Preparing controller setup", message: "The app will download and verify the official release files first. Windows will then ask for administrator approval before installing the driver.", kind: "info" });
   const installArgs = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptPath, "-ProgressPath", progressPath, "-ResultPath", resultPath];
   let lastProgress = "";
   const poller = setInterval(() => {
