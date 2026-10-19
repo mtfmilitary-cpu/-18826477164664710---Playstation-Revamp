@@ -6,7 +6,7 @@ const SIGNAL_PATH = "/party-ws";
 const configuredVoipServer = String(import.meta.env.VITE_VOIP_SERVER_URL || "").trim();
 
 function getSignalingUrl() {
-  if (configuredVoipServer) return configuredVoipServer.replace(/\\/$/, "");
+  if (configuredVoipServer) return configuredVoipServer.replace(/\/$/, "");
   const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
   return `${scheme}//${window.location.host}${SIGNAL_PATH}`;
 }
