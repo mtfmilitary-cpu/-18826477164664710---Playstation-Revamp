@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AudioLines, Gamepad2, Headphones, Moon, Music2, Power, Settings2, Trophy, Users, X, RefreshCw, Volume2, Mic, Monitor, Plus, LogOut } from "lucide-react";
+import { AudioLines, Gamepad2, Headphones, Moon, Music2, Power, Settings2, Trophy, Users, X, RefreshCw, Volume2, Mic, Plus, LogOut } from "lucide-react";
 import PeerCallPanel from "./PeerCallPanel";
 import "./QuickMenu.css";
 
