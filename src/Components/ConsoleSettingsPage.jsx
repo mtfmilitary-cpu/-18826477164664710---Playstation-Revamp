@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Monitor, Palette, Power, RotateCcw, Moon, AlertTriangle, Volume2, MousePointer2, Music2 } from "lucide-react";
+import { Monitor, Palette, Power, RotateCcw, Moon, AlertTriangle, Volume2, MousePointer2, Music2, Gamepad2, Bluetooth, Cable, RefreshCw } from "lucide-react";
 import "./ConsoleSettings.css";
 
 const DEFAULTS = { accent: "#2877dc", font: "Inter", backdrop: "blue", soundsEnabled: true, soundVolume: 50, backgroundMusicEnabled: true };
@@ -10,6 +10,31 @@ export default function ConsoleSettingsPage() {
     catch { return DEFAULTS; }
   });
   const [powerMessage, setPowerMessage] = useState("");
+  const [controllerInfo, setControllerInfo] = useState(null);
+
+  useEffect(() => {
+    const refreshController = () => {
+      const pads = Array.from(navigator.getGamepads?.() || []).filter((pad) => pad?.connected);
+      const pad = pads.find((candidate) => /dualshock|wireless controller|sony/i.test(candidate.id)) || pads[0] || null;
+      const next = pad ? {
+        id: pad.id || "Game controller",
+        mapping: pad.mapping || "non-standard",
+        buttons: pad.buttons?.length || 0,
+        axes: pad.axes?.length || 0,
+        index: pad.index,
+      } : null;
+      setControllerInfo((current) => JSON.stringify(current) === JSON.stringify(next) ? current : next);
+    };
+    refreshController();
+    window.addEventListener("gamepadconnected", refreshController);
+    window.addEventListener("gamepaddisconnected", refreshController);
+    const timer = window.setInterval(refreshController, 1000);
+    return () => {
+      window.removeEventListener("gamepadconnected", refreshController);
+      window.removeEventListener("gamepaddisconnected", refreshController);
+      window.clearInterval(timer);
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("console-settings", JSON.stringify(settings));
@@ -89,6 +114,24 @@ export default function ConsoleSettingsPage() {
           ].map(([file, label]) => <button key={file} className="console-settings-button secondary" onClick={() => testSound(file)}>{label}</button>)}
         </div>
         <p className="console-settings-audio-note">Optional files go in the project's <code>public</code> folder: <code>Hover_Steam.mp3</code>, <code>Select_Stream.mp3</code>, <code>Steam_Background.mp3</code>, <code>QuickMenu_Open.mp3</code>, <code>QuickMenu_Close.mp3</code>, <code>Navigation_Back.mp3</code>, <code>Keyboard_Typing.mp3</code>, <code>Achievement_Unlock.mp3</code>, <code>Party_Join.mp3</code>, <code>Party_Leave.mp3</code>, <code>Call_Connected.mp3</code>, <code>Call_Disconnected.mp3</code>, <code>Console_Notification.mp3</code>, <code>Console_Error.mp3</code>, and <code>Game_Launch.mp3</code>. Missing files are skipped. UI sounds stop when the console loses focus; voice-call audio is independent.</p>
+      </section>
+
+      <section className="console-settings-section">
+        <div className="console-settings-section-heading"><Gamepad2 size={20} /><div><h2>Controller Setup</h2><p>DualShock 4 support over USB and Bluetooth.</p></div></div>
+        <div className="console-settings-row">
+          <div><strong>Controller status</strong><p>{controllerInfo ? controllerInfo.id : "No controller detected yet. Connect it, then press a button and refresh."}</p></div>
+          <span className={controllerInfo ? "console-controller-status connected" : "console-controller-status"}>{controllerInfo ? "Connected" : "Not detected"}</span>
+        </div>
+        {controllerInfo && <div className="console-settings-row"><div><strong>Input mapping</strong><p>{controllerInfo.mapping === "standard" ? "Standard gamepad mapping is available." : "Windows exposed a non-standard mapping; some button labels may differ."}</p></div><span>{controllerInfo.buttons} buttons · {controllerInfo.axes} axes</span></div>}
+        <div className="console-settings-sound-tests">
+          <button className="console-settings-button secondary" onClick={() => {
+            const pads = Array.from(navigator.getGamepads?.() || []).filter((pad) => pad?.connected);
+            const pad = pads.find((candidate) => /dualshock|wireless controller|sony/i.test(candidate.id)) || pads[0] || null;
+            setControllerInfo(pad ? { id: pad.id || "Game controller", mapping: pad.mapping || "non-standard", buttons: pad.buttons?.length || 0, axes: pad.axes?.length || 0, index: pad.index } : null);
+          }}><RefreshCw size={16}/> Refresh controller</button>
+          <button className="console-settings-button secondary" onClick={() => window.consoleBridge?.openBluetoothSettings?.().catch((error) => setPowerMessage(error.message || "Could not open Bluetooth settings."))}><Bluetooth size={16}/> Windows Bluetooth settings</button>
+        </div>
+        <p className="console-settings-audio-note"><Cable size={14} style={{display:"inline",verticalAlign:"middle"}}/> USB: connect the controller with a data-capable USB cable. <Bluetooth size={14} style={{display:"inline",verticalAlign:"middle"}}/> Bluetooth: pair it in Windows, then press a controller button so the app can detect it. The console uses Windows' gamepad driver and standard button mapping; per-game remapping and advanced haptics are not implemented yet.</p>
       </section>
 
       <section className="console-settings-section">
