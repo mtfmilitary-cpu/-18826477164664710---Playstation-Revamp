@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain, dialog } from "electron";
+import { app, BrowserWindow, shell, ipcMain, dialog, globalShortcut } from "electron";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
@@ -54,6 +54,13 @@ async function createWindow() {
 app.whenReady().then(async () => {
   await startServer(3000, "127.0.0.1");
   await createWindow();
+  // Scroll Lock is a global console hotkey, including while a Steam game is foregrounded.
+  globalShortcut.register("ScrollLock", () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    mainWindow.show();
+    mainWindow.focus();
+    mainWindow.webContents.send("console:quick-menu-toggle");
+  });
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -83,6 +90,8 @@ ipcMain.handle("console:power-action", async (_event, action) => {
   }
   return { message: labels[action] + " requested." };
 });
+
+app.on("will-quit", () => globalShortcut.unregisterAll());
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
