@@ -341,9 +341,15 @@ app.get('/api/v1/profile/me', async (_req, res) => {
           gameId: friend.gameid || null,
         }));
       } catch (error) {
-        diagnostic('STEAM-API-0004', 'Steam friend profile details could not be loaded.', null, 'WARN', {
-          code: /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || '')) ? String(error.code) : 'STEAM_FRIEND_DETAILS_FAILED',
+        const safeCode = /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || '')) ? String(error.code) : 'STEAM_FRIEND_DETAILS_FAILED';
+        const safeError = Object.assign(
+          new Error(String(error?.message || 'Steam friend profile details request failed.')),
+          { code: safeCode, status: Number.isInteger(error?.status) ? error.status : undefined }
+        );
+        diagnostic('STEAM-API-0004', 'Steam friend profile details could not be loaded.', safeError, 'WARN', {
+          code: safeCode,
           status: Number.isInteger(error?.status) ? error.status : undefined,
+          errorName: String(error?.name || 'Error').slice(0, 80),
         });
       }
     }
