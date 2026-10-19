@@ -472,6 +472,7 @@ const HomeDashboard = () => {
     const game = allGames[activeIdx];
 
     return (
+        <>
         <div style={{
             width: "100vw",
             height: "100vh",
@@ -754,6 +755,7 @@ const HomeDashboard = () => {
                     </section>
                 </div>
             )}
+        </>
     );
 };
 
