@@ -39,6 +39,28 @@ const PORT = Number(process.env.PORT || 3000);
 
 app.disable('x-powered-by');
 app.use(express.json({ limit: '64kb' }));
+
+// One timeline for backend activity. Never record query strings, request bodies,
+// cookies, authorization headers, or private chat contents.
+app.use((req, res, next) => {
+  const startedAt = Date.now();
+  const route = String(req.path || '/').slice(0, 180);
+  diagnostic('HTTP-REQUEST-0001', 'HTTP request started.', null, 'INFO', {
+    method: req.method, route,
+  });
+  res.on('finish', () => {
+    const status = res.statusCode;
+    diagnostic(
+      status >= 500 ? 'HTTP-REQUEST-0003' : status >= 400 ? 'HTTP-REQUEST-0002' : 'HTTP-REQUEST-0004',
+      'HTTP request finished.',
+      null,
+      status >= 500 ? 'ERROR' : status >= 400 ? 'WARN' : 'INFO',
+      { method: req.method, route, status, durationMs: Date.now() - startedAt }
+    );
+  });
+  next();
+});
+
 app.use('/api/v1', (req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
@@ -212,6 +234,25 @@ app.get('/api/v1/profile/me', async (_req, res) => {
       steamWebApi('IPlayerService', 'GetSteamLevel', { steamid: localAccount.steamId }),
       steamWebApi('ISteamUser', 'GetFriendList', { steamid: localAccount.steamId, relationship: 'friend' }),
     ]);
+    const requestLabels = ['player summaries', 'owned games', 'recently played games', 'Steam level', 'friends list'];
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        const reason = result.reason;
+        const safe = reason instanceof Error
+          ? Object.assign(new Error(reason.name || 'Steam request failed'), {
+              code: /^[A-Z0-9_-]{1,80}$/i.test(String(reason.code || '')) ? String(reason.code) : 'STEAM_REQUEST_FAILED',
+              status: Number.isInteger(reason.status) ? reason.status : undefined,
+            })
+          : Object.assign(new Error('Steam request failed.'), { code: 'STEAM_REQUEST_FAILED' });
+        diagnostic('STEAM-API-0002', 'A Steam profile API request failed.', safe, 'WARN', {
+          request: requestLabels[index] || 'unknown request',
+        });
+      } else {
+        diagnostic('STEAM-API-0003', 'A Steam profile API request succeeded.', null, 'INFO', {
+          request: requestLabels[index] || 'unknown request',
+        });
+      }
+    });
     const value = (index) => results[index].status === 'fulfilled' ? results[index].value : null;
     const summaryPayload = value(0);
     const gamesPayload = value(1);
@@ -240,7 +281,12 @@ app.get('/api/v1/profile/me', async (_req, res) => {
           gameName: friend.gameextrainfo || null,
           gameId: friend.gameid || null,
         }));
-      } catch {}
+      } catch (error) {
+        diagnostic('STEAM-API-0004', 'Steam friend profile details could not be loaded.', null, 'WARN', {
+          code: /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || '')) ? String(error.code) : 'STEAM_FRIEND_DETAILS_FAILED',
+          status: Number.isInteger(error?.status) ? error.status : undefined,
+        });
+      }
     }
     const totalMinutes = ownedGames.reduce((sum, game) => sum + Math.max(0, Number(game.playtime_forever || 0)), 0);
     const normalizedOwnedGames = ownedGames
@@ -352,7 +398,11 @@ app.get('/api/v1/profile/achievements/all', async (_req, res) => {
     allAchievementCache.set(account.steamId, { at: Date.now(), data });
     res.json(data);
   } catch (error) {
-    res.status(502).json({ error: error.message || 'Steam achievements could not be loaded.' });
+    diagnostic('STEAM-ACHIEVEMENTS-0001', 'Steam library achievements request failed.', null, 'WARN', {
+      code: /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || '')) ? String(error.code) : 'STEAM_ACHIEVEMENTS_FAILED',
+      status: Number.isInteger(error?.status) ? error.status : undefined,
+    });
+    res.status(502).json({ error: 'Steam achievements could not be loaded.' });
   }
 });
 
@@ -382,7 +432,12 @@ app.get('/api/v1/profile/achievements/:appId', async (req, res) => {
       achievements,
     });
   } catch (error) {
-    res.status(502).json({ error: error.message || 'Steam achievement data is temporarily unavailable.' });
+    diagnostic('STEAM-ACHIEVEMENTS-0002', 'Steam per-game achievements request failed.', null, 'WARN', {
+      appId,
+      code: /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || '')) ? String(error.code) : 'STEAM_ACHIEVEMENTS_FAILED',
+      status: Number.isInteger(error?.status) ? error.status : undefined,
+    });
+    res.status(502).json({ error: 'Steam achievement data is temporarily unavailable.' });
   }
 });
 
@@ -390,20 +445,40 @@ app.get('/api/v1/profile/achievements/:appId', async (req, res) => {
 // or Steam credentials are requested or stored.
 app.get('/api/v1/library/installed', (_req, res) => {
   try { res.json(getInstalledGames()); }
-  catch (error) { res.status(500).json({ error: error.message }); }
+  catch (error) {
+    diagnostic('LIBRARY-0001', 'Installed game library read failed.', null, 'ERROR', {
+      code: /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || '')) ? String(error.code) : 'LIBRARY_READ_FAILED',
+    });
+    res.status(500).json({ error: 'Installed game library could not be read.' });
+  }
 });
 
 app.post('/api/v1/library/refresh', (_req, res) => {
-  try { res.json(scanInstalledGames()); }
-  catch (error) { res.status(500).json({ error: error.message }); }
+  try {
+    const result = scanInstalledGames();
+    diagnostic('LIBRARY-0002', 'Installed Steam library scan completed.', null, 'INFO', {
+      gamesFound: result.games.length, librariesFound: result.libraryCount,
+    });
+    res.json(result);
+  } catch (error) {
+    diagnostic('LIBRARY-0003', 'Installed Steam library scan failed.', null, 'ERROR', {
+      code: /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || '')) ? String(error.code) : 'LIBRARY_SCAN_FAILED',
+    });
+    res.status(500).json({ error: 'Installed Steam library scan failed.' });
+  }
 });
 
 app.post('/api/v1/library/launch', async (req, res) => {
   try {
     const result = await launchInstalledGame(req.body?.appId);
+    diagnostic('GAME-LAUNCH-0001', 'Steam game launch request completed.', null, 'INFO', { appId: result.appId });
     res.json(result);
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    diagnostic('GAME-LAUNCH-0002', 'Steam game launch request failed.', null, 'WARN', {
+      appId: /^\\d{1,12}$/.test(String(req.body?.appId || '')) ? String(req.body.appId) : 'invalid',
+      code: /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || '')) ? String(error.code) : 'GAME_LAUNCH_FAILED',
+    });
+    res.status(400).json({ error: 'The requested Steam game could not be launched.' });
   }
 });
 
@@ -589,13 +664,37 @@ export function startServer(port = PORT, host = '127.0.0.1') {
     server.once('error', reject);
     server.listen(port, host, () => {
       server.removeListener('error', reject);
-      console.log(`Console backend listening on http://${host}:${server.address().port}`);
+      diagnostic('SERVER-0000', 'Backend server is listening.', null, 'INFO', {
+        host, port: server.address().port, pid: process.pid, platform: process.platform,
+      });
       resolve(server);
     });
   });
 }
 
+process.on('uncaughtException', (error) => {
+  diagnostic('SERVER-FATAL-0001', 'Uncaught exception in backend process.', null, 'FATAL', {
+    name: String(error?.name || 'Error').slice(0, 80),
+    code: /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || '')) ? String(error.code) : 'UNCAUGHT_EXCEPTION',
+  });
+  process.exitCode = 1;
+});
+process.on('unhandledRejection', (reason) => {
+  diagnostic('SERVER-PROMISE-0001', 'Unhandled promise rejection in backend process.', null, 'ERROR', {
+    name: String(reason?.name || 'Error').slice(0, 80),
+    code: /^[A-Z0-9_-]{1,80}$/i.test(String(reason?.code || '')) ? String(reason.code) : 'UNHANDLED_REJECTION',
+  });
+});
+process.on('exit', (code) => {
+  diagnostic('SERVER-EXIT-0001', 'Backend process is exiting.', null, code === 0 ? 'INFO' : 'ERROR', { exitCode: code });
+});
+
 if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  diagnostic('SERVER-BOOT-0000', 'Backend process starting.', null, 'INFO', {
+    pid: process.pid, platform: process.platform, node: process.version,
+  });
   startServer(Number(process.env.PORT || 3000), process.env.HOST || '127.0.0.1')
-    .catch((error) => { diagnostic('SERVER-0001', 'Backend server failed to start.', error, 'FATAL'); process.exitCode = 1; });
+    .catch((error) => { diagnostic('SERVER-0001', 'Backend server failed to start.', null, 'FATAL', {
+      code: /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || '')) ? String(error.code) : 'SERVER_START_FAILED',
+    }); process.exitCode = 1; });
 }
