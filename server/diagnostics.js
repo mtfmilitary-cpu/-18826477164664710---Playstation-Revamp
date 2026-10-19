@@ -33,6 +33,7 @@ function rotateIfNeeded(incomingBytes) {
     for (let index = retainedLogs - 1; index >= 1; index--) {
       const older = `${logFile}.${index}`;
       const newer = `${logFile}.${index + 1}`;
+      if (fs.existsSync(newer)) fs.rmSync(newer, { force: true });
       if (fs.existsSync(older)) fs.renameSync(older, newer);
     }
     fs.renameSync(logFile, `${logFile}.1`);
