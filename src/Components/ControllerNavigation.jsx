@@ -294,7 +294,6 @@ export default function ControllerNavigationProvider({ children }) {
         let lastDirectionAt = 0;
         let heldDirection = null;
         let nextRepeatAt = 0;
-        let previousAxisDirection = null;
         const previousButtons = new Map();
         let initializedPad = false;
         const poll = (timestamp) => {
@@ -328,10 +327,13 @@ export default function ControllerNavigationProvider({ children }) {
                         processDirection(direction);
                         nextRepeatAt = timestamp + 115;
                     }
-                    if (!direction) previousAxisDirection = null;
-                    else previousAxisDirection = direction;
                     // DualShock 4 standard mapping: Cross=0, Circle=1, Options=9.
                     // The Guide button is driver-dependent and is not reliably exposed by Chromium.
+                    if (rising(4)) { window.scrollBy({ top: -window.innerHeight * 0.6, behavior: 'smooth' }); }
+                    if (rising(5)) { window.scrollBy({ top: window.innerHeight * 0.6, behavior: 'smooth' }); }
+                    // Share opens Home; Options opens the Quick Menu. The PS/Guide button
+                    // is intentionally not assumed to be available through Chromium.
+                    if (rising(8)) window.consoleBridge?.openMainRoute?.('/home').catch(() => {});
                     if (rising(9)) window.consoleBridge?.toggleQuickMenu?.().catch(() => {});
                     if (rising(0)) {
                         if (focusedRef.current && isActiveRef.current) focusedRef.current.click();
@@ -344,7 +346,6 @@ export default function ControllerNavigationProvider({ children }) {
                         if (location.pathname === '/overlay') window.consoleBridge?.hideQuickMenu?.().catch(() => {});
                         else if (location.pathname !== '/home') navigate(-1);
                     }
-                    if (rising(2)) { const el = focusedRef.current; if (el && el.matches('input,textarea') && 'value' in el) el.value = el.value; }
                 }
             }
             frameId = requestAnimationFrame(poll);
