@@ -10,6 +10,10 @@ const FOCUSABLE_SELECTOR = [
     'a[href]:not([data-no-focus])',
     'button:not([disabled]):not([data-no-focus])',
     '[role="button"]:not([data-no-focus])',
+    'input:not([type="hidden"]):not([disabled]):not([data-no-focus])',
+    'select:not([disabled]):not([data-no-focus])',
+    'textarea:not([disabled]):not([data-no-focus])',
+    '[tabindex]:not([tabindex="-1"]):not([disabled]):not([data-no-focus])',
     '[data-focusable]',
 ].join(', ');
 
@@ -33,8 +37,9 @@ export default function ControllerNavigationProvider({ children }) {
             if (rect.width === 0 || rect.height === 0) return false;
 
             const style = window.getComputedStyle(el);
-            if (style.display === 'none' || style.visibility === 'hidden') return false;
+            if (style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none') return false;
             if (parseFloat(style.opacity) < 0.05) return false;
+            if (el.closest('[inert], [aria-hidden="true"]')) return false;
 
             return true;
         });
@@ -105,7 +110,13 @@ export default function ControllerNavigationProvider({ children }) {
             if (!isCandidate) continue;
 
             // Score: prefer items along the movement axis (penalise cross-axis distance)
-            const score = primaryDist + crossDist * 3;
+            // Prefer targets whose projected range overlaps the current element; this
+            // avoids jumping diagonally across columns in console-style layouts.
+            const overlap = direction === 'up' || direction === 'down'
+                ? Math.max(0, Math.min(cr.right, er.right) - Math.max(cr.left, er.left))
+                : Math.max(0, Math.min(cr.bottom, er.bottom) - Math.max(cr.top, er.top));
+            const overlapBonus = overlap > 0 ? Math.min(overlap, 120) * 0.65 : 0;
+            const score = primaryDist + crossDist * 2.2 - overlapBonus;
             if (score < bestScore) {
                 bestScore = score;
                 best = el;
@@ -120,6 +131,7 @@ export default function ControllerNavigationProvider({ children }) {
     const setFocus = useCallback((el) => {
         if (focusedRef.current) {
             focusedRef.current.classList.remove('ps-focused');
+            focusedRef.current.removeAttribute('data-controller-focused');
         }
 
         focusedRef.current = el;
@@ -128,11 +140,13 @@ export default function ControllerNavigationProvider({ children }) {
         if (el) {
             setFocusIndicatorEnabled(true);
             el.classList.add('ps-focused');
+            el.setAttribute('data-controller-focused', 'true');
+            if (el.matches('input, textarea, select')) el.focus({ preventScroll: true });
             isActiveRef.current = true;
             window.__focusNavActive = true;
 
             // Scroll the element into view
-            el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+            el.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'nearest' });
 
             // Tell VirtualCursor where we are so the dot follows
             const r = el.getBoundingClientRect();
@@ -221,6 +235,8 @@ export default function ControllerNavigationProvider({ children }) {
                 break;
 
             case 'CROSS':
+            case 'SELECT':
+            case 'CONFIRM':
                 if (focusedRef.current && isActiveRef.current) {
                     // Flag for VirtualCursor to skip its own click
                     window.__controllerFocusHandled = true;
@@ -234,10 +250,14 @@ export default function ControllerNavigationProvider({ children }) {
                 break;
 
             case 'CIRCLE':
-                navigate(-1);
+            case 'BACK':
+            case 'CANCEL':
+                if (location.pathname === '/overlay') window.consoleBridge?.hideQuickMenu?.().catch(() => {});
+                else navigate(-1);
                 break;
 
             case 'TRIANGLE':
+            case 'NAVBAR':
                 // Jump to navbar
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 setTimeout(() => {
@@ -272,6 +292,9 @@ export default function ControllerNavigationProvider({ children }) {
     useEffect(() => {
         let frameId;
         let lastDirectionAt = 0;
+        let heldDirection = null;
+        let nextRepeatAt = 0;
+        let previousAxisDirection = null;
         const previousButtons = new Map();
         let initializedPad = false;
         const poll = (timestamp) => {
@@ -290,18 +313,26 @@ export default function ControllerNavigationProvider({ children }) {
                         pad.buttons.forEach((button, index) => previousButtons.set(String(pad.index) + ":" + String(index), Boolean(button?.pressed)));
                         initializedPad = true;
                     }
-                    let direction = null;
-                    if (rising(12) || (pad.axes[1] < -0.65 && timestamp - lastDirectionAt > 190)) direction = "up";
-                    else if (rising(13) || (pad.axes[1] > 0.65 && timestamp - lastDirectionAt > 190)) direction = "down";
-                    else if (rising(14) || (pad.axes[0] < -0.65 && timestamp - lastDirectionAt > 190)) direction = "left";
-                    else if (rising(15) || (pad.axes[0] > 0.65 && timestamp - lastDirectionAt > 190)) direction = "right";
-                    if (direction && timestamp - lastDirectionAt > 120) {
-                        lastDirectionAt = timestamp;
+                    const axisX = Number(pad.axes?.[0] || 0);
+                    const axisY = Number(pad.axes?.[1] || 0);
+                    const direction = rising(12) ? 'up' : rising(13) ? 'down' : rising(14) ? 'left' : rising(15) ? 'right' :
+                        axisY < -0.62 ? 'up' : axisY > 0.62 ? 'down' : axisX < -0.62 ? 'left' : axisX > 0.62 ? 'right' : null;
+                    if (direction !== heldDirection) {
+                        heldDirection = direction;
+                        nextRepeatAt = timestamp + 330;
+                        if (direction && timestamp - lastDirectionAt > 90) {
+                            lastDirectionAt = timestamp;
+                            processDirection(direction);
+                        }
+                    } else if (direction && timestamp >= nextRepeatAt) {
                         processDirection(direction);
+                        nextRepeatAt = timestamp + 115;
                     }
-                    if (rising(9)) {
-                        window.consoleBridge?.toggleQuickMenu?.().catch(() => {});
-                    }
+                    if (!direction) previousAxisDirection = null;
+                    else previousAxisDirection = direction;
+                    // DualShock 4 standard mapping: Cross=0, Circle=1, Options=9.
+                    // The Guide button is driver-dependent and is not reliably exposed by Chromium.
+                    if (rising(9)) window.consoleBridge?.toggleQuickMenu?.().catch(() => {});
                     if (rising(0)) {
                         if (focusedRef.current && isActiveRef.current) focusedRef.current.click();
                         else {
@@ -309,7 +340,11 @@ export default function ControllerNavigationProvider({ children }) {
                             if (first) setFocus(first);
                         }
                     }
-                    if (rising(1) && location.pathname !== "/home") navigate(-1);
+                    if (rising(1)) {
+                        if (location.pathname === '/overlay') window.consoleBridge?.hideQuickMenu?.().catch(() => {});
+                        else if (location.pathname !== '/home') navigate(-1);
+                    }
+                    if (rising(2)) { const el = focusedRef.current; if (el && el.matches('input,textarea') && 'value' in el) el.value = el.value; }
                 }
             }
             frameId = requestAnimationFrame(poll);
@@ -339,6 +374,7 @@ export default function ControllerNavigationProvider({ children }) {
                 case 'Escape':
                     if (focusedRef.current) {
                         focusedRef.current.classList.remove('ps-focused');
+                        focusedRef.current.removeAttribute('data-controller-focused');
                         focusedRef.current = null;
                         setFocusedEl(null);
                         isActiveRef.current = false;
@@ -380,6 +416,7 @@ export default function ControllerNavigationProvider({ children }) {
     useEffect(() => {
         if (focusedRef.current) {
             focusedRef.current.classList.remove('ps-focused');
+            focusedRef.current.removeAttribute('data-controller-focused');
         }
         focusedRef.current = null;
         setFocusedEl(null);
@@ -392,7 +429,7 @@ export default function ControllerNavigationProvider({ children }) {
 
     const toggleFocusIndicator = () => {
         if (focusIndicatorEnabled) {
-            if (focusedRef.current) focusedRef.current.classList.remove('ps-focused');
+            if (focusedRef.current) { focusedRef.current.classList.remove('ps-focused'); focusedRef.current.removeAttribute('data-controller-focused'); }
             focusedRef.current = null;
             setFocusedEl(null);
             isActiveRef.current = false;
