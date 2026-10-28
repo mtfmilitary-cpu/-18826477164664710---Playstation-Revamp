@@ -355,6 +355,34 @@ nav a:focus {
       0 0 44px rgba(0, 112, 209, 0.28);
   }
 }
+/* Controller focus applies consistently to ordinary controls too, not only manually tagged cards. */
+.ps-focused,
+[data-controller-focused="true"] {
+  outline: 3px solid rgba(255,255,255,.96) !important;
+  outline-offset: 4px !important;
+  box-shadow: 0 0 0 7px rgba(0,112,209,.34), 0 0 30px rgba(0,112,209,.24) !important;
+  scroll-margin: 28px;
+}
+.ps-focused:where(button, a, [role="button"], input, select, textarea),
+[data-controller-focused="true"]:where(button, a, [role="button"], input, select, textarea) {
+  border-color: rgba(255,255,255,.78) !important;
+}
+.quick-menu-item.ps-focused,
+.quick-menu-action.ps-focused,
+.quick-menu-party button.ps-focused,
+.quick-menu-power-actions button.ps-focused {
+  background: linear-gradient(100deg, rgba(0,112,209,.48), rgba(0,112,209,.18)) !important;
+  color: #fff !important;
+  transform: translateX(3px);
+}
+:where(button, a, [role="button"], input, select, textarea):disabled {
+  opacity: .48;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ps-focused { animation: none !important; }
+  [data-controller-focused="true"] { transition: none !important; }
+}
+
 /* Dedicated Electron Quick Menu window: transparent over desktop apps. */
 html.quick-overlay-window, body.quick-overlay-window, body.quick-overlay-window #root { background: transparent !important; background-color: transparent !important; min-height: 100%; height: 100%; overflow: hidden !important; }
 body.quick-overlay-window #root { isolation: isolate; }
