@@ -91,8 +91,8 @@ export default function QuickMenu() {
       const inputs = all.filter((device) => device.kind === "audioinput");
       const outputs = all.filter((device) => device.kind === "audiooutput");
       setDevices({ inputs, outputs });
-      setSelectedInput((current) => current || inputs[0]?.deviceId || "");
-      setSelectedOutput((current) => current || outputs[0]?.deviceId || "");
+      setSelectedInput((current) => current || localStorage.getItem("console-audio-input") || inputs[0]?.deviceId || "");
+      setSelectedOutput((current) => current || localStorage.getItem("console-audio-output") || outputs[0]?.deviceId || "");
     } catch { setNotice("Windows did not allow audio-device enumeration."); }
   }, []);
 
@@ -267,11 +267,11 @@ export default function QuickMenu() {
 
           {active.id === "sound" && <div className="quick-menu-section">
             <h3><Mic size={15}/> Microphone input</h3>
-            {devices.inputs.length ? <label className="quick-menu-field">Use for party voice<select value={selectedInput} onChange={(event) => { setSelectedInput(event.target.value); window.dispatchEvent(new CustomEvent("console:audio-input-selected", { detail: { deviceId: event.target.value } })); }}>
+            {devices.inputs.length ? <label className="quick-menu-field">Use for party voice<select value={selectedInput} onChange={(event) => { setSelectedInput(event.target.value); localStorage.setItem("console-audio-input", event.target.value); window.dispatchEvent(new CustomEvent("console:audio-input-selected", { detail: { deviceId: event.target.value } })); }}>
               {devices.inputs.map((device, index) => <option key={device.deviceId || index} value={device.deviceId}>{device.label || "Audio input " + (index + 1)}</option>)}
             </select></label> : <p className="quick-menu-muted">No input devices reported. Device names may appear after microphone permission is granted.</p>}
             <h3><Volume2 size={15}/> Party voice output</h3>
-            {devices.outputs.length ? <label className="quick-menu-field">Play party audio through<select value={selectedOutput} onChange={(event) => { setSelectedOutput(event.target.value); window.dispatchEvent(new CustomEvent("console:audio-output-selected", { detail: { deviceId: event.target.value } })); }}>
+            {devices.outputs.length ? <label className="quick-menu-field">Play party audio through<select value={selectedOutput} onChange={(event) => { setSelectedOutput(event.target.value); localStorage.setItem("console-audio-output", event.target.value); window.dispatchEvent(new CustomEvent("console:audio-output-selected", { detail: { deviceId: event.target.value } })); }}>
               {devices.outputs.map((device, index) => <option key={device.deviceId || index} value={device.deviceId}>{device.label || "Audio output " + (index + 1)}</option>)}
             </select></label> : <p className="quick-menu-muted">No output devices reported by the browser.</p>}
             <button className="quick-menu-action" onClick={loadDevices}><RefreshCw size={14}/> Refresh devices</button>
