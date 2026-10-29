@@ -6,7 +6,7 @@
  *      transition — the poster fills the screen with an animated fade+scale.
  *      "Play Game" on library-only titles navigates to /library.
  */
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
@@ -99,6 +99,7 @@ const HomeDashboard = () => {
     const [steamProfile, setSteamProfile] = useState(null);
     const [steamGames, setSteamGames] = useState([]);
     const [steamGamesLoading, setSteamGamesLoading] = useState(true);
+    const longHoldActiveRef = useRef(false);
     const navItems = ["Games", "Friends", "Store"];
     const displayGames = steamGames.map((item) => ({ ...item, title: item.name, poster: item.hero || item.cover, accentColor: "#3d7ec9", genre: "Steam library", fromLibrary: true, logo: null }));
 
@@ -120,6 +121,7 @@ const HomeDashboard = () => {
     // Navigation logic for D-Pad — cycles through allGames
     useEffect(() => {
         if (!action) return;
+        if (longHoldActiveRef.current && (action === "DPAD_LEFT" || action === "DPAD_RIGHT")) return;
         if (["DPAD_LEFT", "DPAD_RIGHT", "DPAD_UP", "DPAD_DOWN"].includes(action)) window.dispatchEvent(new Event("console:sound-hover"));
         if (action === "CROSS") window.dispatchEvent(new Event("console:sound-select"));
         if (!displayGames.length && focusZone === "GAMES" && (action === "DPAD_LEFT" || action === "DPAD_RIGHT")) return;
@@ -157,6 +159,100 @@ const HomeDashboard = () => {
             }
         }
     }, [action, focusZone, navIdx, displayGames.length]);
+
+    // Keyboard: move once on press, then start rapid selection only after a 3-second hold.
+    useEffect(() => {
+        if (focusZone !== "GAMES" || detailsOpen || displayGames.length < 1) return undefined;
+        let heldKey = null;
+        let holdTimer = null;
+        let repeatTimer = null;
+        const move = (direction) => {
+            setActiveIdx(index => (index + (direction === "right" ? 1 : -1) + displayGames.length) % displayGames.length);
+            window.dispatchEvent(new Event("console:sound-hover"));
+        };
+        const stop = () => {
+            heldKey = null;
+            if (holdTimer) window.clearTimeout(holdTimer);
+            if (repeatTimer) window.clearInterval(repeatTimer);
+            holdTimer = null;
+            repeatTimer = null;
+        };
+        const onKeyDown = (event) => {
+            if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+            if (event.altKey || event.ctrlKey || event.metaKey || ["INPUT", "TEXTAREA", "SELECT"].includes(event.target?.tagName)) return;
+            event.preventDefault();
+            if (event.repeat || heldKey === event.key) return;
+            stop();
+            heldKey = event.key;
+            const direction = event.key === "ArrowRight" ? "right" : "left";
+            move(direction);
+            holdTimer = window.setTimeout(() => {
+                if (heldKey !== event.key) return;
+                repeatTimer = window.setInterval(() => {
+                    if (heldKey === event.key) move(direction);
+                }, 130);
+            }, 3000);
+        };
+        const onKeyUp = (event) => {
+            if (event.key === heldKey) stop();
+        };
+        const onBlur = () => stop();
+        window.addEventListener("keydown", onKeyDown, true);
+        window.addEventListener("keyup", onKeyUp, true);
+        window.addEventListener("blur", onBlur);
+        return () => {
+            stop();
+            window.removeEventListener("keydown", onKeyDown, true);
+            window.removeEventListener("keyup", onKeyUp, true);
+            window.removeEventListener("blur", onBlur);
+        };
+    }, [focusZone, detailsOpen, displayGames.length]);
+
+    // Controller: after a continuous left/right hold of 3 seconds, repeat selection until released.
+    useEffect(() => {
+        if (focusZone !== "GAMES" || detailsOpen || displayGames.length < 1) return undefined;
+        let frame = 0;
+        let direction = null;
+        let heldSince = 0;
+        let repeatTimer = null;
+        let repeating = false;
+        const stopRepeat = () => {
+            if (repeatTimer) window.clearInterval(repeatTimer);
+            repeatTimer = null;
+            repeating = false;
+            longHoldActiveRef.current = false;
+        };
+        const move = (dir) => {
+            setActiveIdx(index => (index + (dir === "right" ? 1 : -1) + displayGames.length) % displayGames.length);
+            window.dispatchEvent(new Event("console:sound-hover"));
+        };
+        const poll = (timestamp) => {
+            const pads = Array.from(navigator.getGamepads?.() || []).filter(Boolean);
+            const pad = pads.find(candidate => candidate.connected);
+            let nextDirection = null;
+            if (pad) {
+                const left = Boolean(pad.buttons[14]?.pressed) || (pad.axes?.[0] ?? 0) < -0.7;
+                const right = Boolean(pad.buttons[15]?.pressed) || (pad.axes?.[0] ?? 0) > 0.7;
+                if (left !== right) nextDirection = left ? "left" : "right";
+            }
+            if (nextDirection !== direction) {
+                stopRepeat();
+                direction = nextDirection;
+                heldSince = nextDirection ? timestamp : 0;
+            } else if (direction && !repeating && timestamp - heldSince >= 3000) {
+                repeating = true;
+                longHoldActiveRef.current = true;
+                repeatTimer = window.setInterval(() => move(direction), 130);
+            }
+            if (!direction) stopRepeat();
+            frame = window.requestAnimationFrame(poll);
+        };
+        frame = window.requestAnimationFrame(poll);
+        return () => {
+            window.cancelAnimationFrame(frame);
+            stopRepeat();
+        };
+    }, [focusZone, detailsOpen, displayGames.length]);
 
     async function openGameDetails(selectedGame) {
         setDetailsOpen(true);
