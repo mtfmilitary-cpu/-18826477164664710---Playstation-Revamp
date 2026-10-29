@@ -1,0 +1,85 @@
+name: Three-pass validation
+
+on:
+  push:
+    branches:
+      - electron-steam-console
+  pull_request:
+    branches:
+      - electron-steam-console
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validation-pass-1-build:
+    name: "Pass 1 — production build"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node --check server.js && node --check electron/main.js && node --check electron/preload.cjs
+
+  validation-pass-2-quality:
+    name: "Pass 2 — lint and source integrity"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - name: Validate package and native bridge source presence
+        run: |
+          node --input-type=module -e "import fs from 'node:fs'; const p=JSON.parse(fs.readFileSync('package.json','utf8')); if (!p.scripts?.build || !p.scripts?.lint) process.exit(1); for (const f of ['native/WindowsGameInputBridge/GameInputBridge.cpp','native/WindowsGameInputBridge/build.bat','native/WindowsGameInputBridge/README.md','src/Components/Achievements.jsx']) if (!fs.existsSync(f)) throw new Error('Missing required file: '+f); console.log('Package scripts and integration files are present.')"
+
+  validation-pass-3-windows-native:
+    name: "Pass 3 — Windows native helper compile and final build"
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - run: npm ci
+      - run: npm run build
+      - name: Restore Microsoft GameInput SDK
+        shell: pwsh
+        run: |
+          if (-not (Get-Command nuget.exe -ErrorAction SilentlyContinue)) {
+            Invoke-WebRequest -Uri "https://dist.nuget.org/win-x86-commandline/latest/nuget.exe" -OutFile "$env:RUNNER_TEMP/nuget.exe"
+            $nuget = "$env:RUNNER_TEMP/nuget.exe"
+          } else {
+            $nuget = "nuget.exe"
+          }
+          & $nuget install Microsoft.GameInput -OutputDirectory packages -NonInteractive
+          if ($LASTEXITCODE -ne 0) { throw "Could not restore Microsoft.GameInput." }
+          $header = Get-ChildItem packages -Filter GameInput.h -Recurse | Select-Object -First 1
+          $library = Get-ChildItem packages -Filter GameInput.lib -Recurse | Where-Object { $_.FullName -match '[\\/]x64[\\/]' -or $_.DirectoryName -match 'x64' } | Select-Object -First 1
+          if (-not $header -or -not $library) {
+            Write-Host "GameInput SDK package layout:"
+            Get-ChildItem packages -Recurse | Select-Object -ExpandProperty FullName
+            throw "Could not locate GameInput.h and an x64 GameInput.lib in the restored SDK package."
+          }
+          "GAMEINPUT_INCLUDE=$($header.DirectoryName)" >> $env:GITHUB_ENV
+          "GAMEINPUT_LIBDIR=$($library.DirectoryName)" >> $env:GITHUB_ENV
+      - name: Compile native helper
+        shell: pwsh
+        run: |
+          $source = "native/WindowsGameInputBridge/GameInputBridge.cpp"
+          $output = "native/WindowsGameInputBridge/GameInputBridge.exe"
+          cl.exe /nologo /EHsc /std:c++17 /W4 "/I$env:GAMEINPUT_INCLUDE" $source /link "/LIBPATH:$env:GAMEINPUT_LIBDIR" GameInput.lib "/OUT:$output"
+          if ($LASTEXITCODE -ne 0) { throw "Native GameInput helper compilation failed." }
+          if (-not (Test-Path $output)) { throw "Compiler reported success but the helper executable was not created." }
