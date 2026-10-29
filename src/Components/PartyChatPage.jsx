@@ -34,6 +34,7 @@ export default function PartyChatPage() {
   }, []);
 
   const loadParties = useCallback(async () => {
+    if (!sessionStorage.getItem("console-steam-token")) { setParties([]); return; }
     try { const data = await request(API); setParties(data.parties || []); }
     catch (err) { setError(err.message); }
   }, [request]);
@@ -162,7 +163,7 @@ export default function PartyChatPage() {
     <header className="social-heading"><div><p className="social-eyebrow">PLAY TOGETHER</p><h1>Party Chat</h1><p>Verify your Steam account before creating or joining parties.</p></div><div className="social-count"><Headphones size={18}/> Party system <button className="social-secondary" onClick={authToken ? signOutSteam : signInSteam} disabled={authPending}>{authToken ? "Steam Verified · Sign Out" : authPending ? "Waiting for Steam…" : "Sign in with Steam"}</button></div></header>
     <div className="party-layout">
       <aside className="party-sidebar">
-        <div className="party-username party-steam-identity"><label>Steam account</label><div>{steamProfile?.avatar ? <img src={steamProfile.avatar} alt=""/> : <span className="party-steam-avatar">{(steamProfile?.personaName || username).slice(0, 1)}</span>}<span><strong>{steamProfile?.personaName || username}</strong><small>{steamProfile?.connected ? "Using your Steam username" : "Steam profile not connected"}</small></span></div></div>
+        <div className="party-username party-steam-identity"><label>Steam account</label><div>{steamProfile?.avatar && !authToken ? <img src={steamProfile.avatar} alt=""/> : <span className="party-steam-avatar">{(authToken ? username : steamProfile?.personaName || username).slice(0, 1)}</span>}<span><strong>{authToken ? username : steamProfile?.personaName || username}</strong><small>{authToken ? "Steam identity verified" : steamProfile?.connected ? "Local Steam profile detected; sign in to verify" : "Steam sign-in required"}</small></span></div></div>
         <form className="party-create" onSubmit={createParty}><label htmlFor="party-name">Start a party</label><input id="party-name" value={partyName} onChange={e => setPartyName(e.target.value)} maxLength={60} placeholder="Party name (optional)"/><button className="social-primary" disabled={busy || !authToken}><Plus size={16}/> Create party</button></form>
         <div className="party-list-heading"><span>Open parties</span><button title="Refresh parties" onClick={loadParties}><RefreshCw size={15}/></button></div>
         {parties.length === 0 ? <p className="social-muted">No active parties yet. Start one!</p> : parties.map(item => <button className={party?.id === item.id ? "party-list-item selected" : "party-list-item"} key={item.id} onClick={() => joinParty(item.id)} disabled={busy || !authToken}><span><strong>{item.name}</strong><small>Host: {item.host}</small></span><span className="party-member-count"><Users size={13}/>{item.members.length}</span></button>)}
