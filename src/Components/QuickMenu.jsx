@@ -10,7 +10,7 @@ const items = [
   { id: "party", label: "Party Chat", icon: Headphones, detail: "Start or join a party, voice chat, and message" },
   { id: "music", label: "Music", icon: Music2, detail: "Music controls" },
   { id: "achievements", label: "Achievements", icon: Trophy, detail: "Recent games and achievement access" },
-  { id: "customize", label: "Customize Console", icon: Settings2, detail: "Change console appearance", path: "/settings" },
+  { id: "customize", label: "Customize Console", icon: Settings2, detail: "Change console appearance" },
   { id: "power", label: "Sleep Mode and Power", icon: Power, detail: "Sleep, restart, or shut down this PC" },
 ];
 
