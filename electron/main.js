@@ -104,6 +104,19 @@ async function createWindow() {
   });
 
   mainWindow.webContents.on("will-navigate", (event, url) => {
+    // Steam game launches must be handed to the registered Steam client instead
+    // of navigating Electron away from the console showcase.
+    if (/^steam:\/\/run\/\d+\/?$/.test(url)) {
+      event.preventDefault();
+      if (isTrustedLocalUrl(mainWindow.webContents.getURL())) {
+        shell.openExternal(url).catch((error) => {
+          diagnostic("GAME-LAUNCH-0003", "Steam protocol handoff failed.", null, "WARN", {
+            code: /^[A-Z0-9_-]{1,80}$/i.test(String(error?.code || "")) ? String(error.code) : "STEAM_PROTOCOL_FAILED",
+          });
+        });
+      }
+      return;
+    }
     if (!isTrustedLocalUrl(url)) event.preventDefault();
   });
 }
