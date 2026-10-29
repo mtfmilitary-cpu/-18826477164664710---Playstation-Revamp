@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Delete, CornerDownLeft, Space, X, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from "lucide-react";
+import { Delete, CornerDownLeft, X, ArrowUp } from "lucide-react";
 import "./OnScreenKeyboard.css";
 
 const ROWS = [
@@ -9,6 +9,7 @@ const ROWS = [
   ["z","x","c","v","b","n","m","-","_","@"],
   [".",",","/","?","!","'",";",":","(",")"],
 ];
+const FLAT_KEYS = [...ROWS.flat(), "SHIFT", "BACKSPACE", "SPACE", "CLEAR", "DONE"];
 const TEXT_TYPES = new Set(["text","search","email","url","tel","password","number"]);
 
 function writeValue(target, nextValue, caret) {
@@ -30,7 +31,6 @@ export default function OnScreenKeyboard() {
   const [selected, setSelected] = useState(0);
   const targetRef = useRef(null);
   const selectedRef = useRef(0);
-  const flatKeys = [...ROWS.flat(), "SHIFT", "BACKSPACE", "SPACE", "CLEAR", "DONE"];
   selectedRef.current = selected;
 
   const close = useCallback(() => {
@@ -79,6 +79,18 @@ export default function OnScreenKeyboard() {
         if (targetRef.current && !targetRef.current.isConnected) close();
       });
     };
+    const onOskAction = (event) => {
+      if (!window.__onScreenKeyboardOpen) return;
+      const action = event.detail?.action;
+      if (action === "close") { close(); return; }
+      if (action === "select") { activate(FLAT_KEYS[selectedRef.current]); return; }
+      const current = selectedRef.current;
+      const next = action === "left" ? Math.max(0, current - 1)
+        : action === "right" ? Math.min(FLAT_KEYS.length - 1, current + 1)
+        : action === "up" ? Math.max(0, current - 10)
+        : action === "down" ? Math.min(FLAT_KEYS.length - 1, current + 10) : current;
+      setSelected(next);
+    };
     const onKeyDown = (event) => {
       if (!window.__onScreenKeyboardOpen) return;
       if (event.key === "Escape") { event.preventDefault(); close(); return; }
@@ -87,7 +99,7 @@ export default function OnScreenKeyboard() {
         event.stopPropagation();
         const current = selectedRef.current;
         const next = event.key === "ArrowLeft" ? Math.max(0, current - 1)
-          : event.key === "ArrowRight" ? Math.min(flatKeys.length - 1, current + 1)
+          : event.key === "ArrowRight" ? Math.min(FLAT_KEYS.length - 1, current + 1)
           : event.key === "ArrowUp" ? Math.max(0, current - 10)
           : Math.min(flatKeys.length - 1, current + 10);
         setSelected(next);
@@ -96,19 +108,21 @@ export default function OnScreenKeyboard() {
       if (event.key === "Enter" && !event.isComposing) {
         event.preventDefault();
         event.stopPropagation();
-        activate(flatKeys[selectedRef.current]);
+        activate(FLAT_KEYS[selectedRef.current]);
       }
     };
+    window.addEventListener("console:osk-action", onOskAction);
     document.addEventListener("focusin", onFocusIn);
     document.addEventListener("focusout", onFocusOut);
     window.addEventListener("keydown", onKeyDown, true);
     return () => {
+      window.removeEventListener("console:osk-action", onOskAction);
       document.removeEventListener("focusin", onFocusIn);
       document.removeEventListener("focusout", onFocusOut);
       window.removeEventListener("keydown", onKeyDown, true);
       window.__onScreenKeyboardOpen = false;
     };
-  }, [activate, close, flatKeys]);
+  }, [activate, close]);
 
   useEffect(() => {
     if (!visible) return undefined;
@@ -150,7 +164,7 @@ export default function OnScreenKeyboard() {
     };
     frame = requestAnimationFrame(poll);
     return () => cancelAnimationFrame(frame);
-  }, [visible, activate, close, flatKeys]);
+  }, [visible, activate, close]);
 
   if (!visible) return null;
   let index = 0;
@@ -164,7 +178,7 @@ export default function OnScreenKeyboard() {
         {row.map(key => { const keyIndex = index++; return <button type="button" key={key} className={selected===keyIndex?"osk-key selected":"osk-key"} onMouseDown={event=>event.preventDefault()} onMouseEnter={()=>setSelected(keyIndex)} onClick={()=>activate(key)}>{shift?key.toUpperCase():key}</button>; })}
       </div>)}
       <div className="onscreen-keyboard-row osk-actions">
-        {["SHIFT","BACKSPACE","SPACE","CLEAR","DONE"].map(key => { const keyIndex = index++; const Icon = key==="BACKSPACE"?Delete:key==="DONE"?CornerDownLeft:key==="SHIFT"?ArrowUp:key==="SPACE"?Space:key==="CLEAR"?X:null; return <button type="button" key={key} className={`osk-key osk-${key.toLowerCase()} ${selected===keyIndex?"selected":""}`} onMouseDown={event=>event.preventDefault()} onMouseEnter={()=>setSelected(keyIndex)} onClick={()=>activate(key)}>{Icon&&<Icon size={15}/>}<span>{key==="SPACE"?"Space":key==="BACKSPACE"?"Delete":key==="DONE"?"Done":key==="SHIFT"?(shift?"Shift on":"Shift"):key==="CLEAR"?"Clear":key}</span></button>; })}
+        {["SHIFT","BACKSPACE","SPACE","CLEAR","DONE"].map(key => { const keyIndex = index++; const Icon = key==="BACKSPACE"?Delete:key==="DONE"?CornerDownLeft:key==="SHIFT"?ArrowUp:key==="CLEAR"?X:null; return <button type="button" key={key} className={`osk-key osk-${key.toLowerCase()} ${selected===keyIndex?"selected":""}`} onMouseDown={event=>event.preventDefault()} onMouseEnter={()=>setSelected(keyIndex)} onClick={()=>activate(key)}>{Icon&&<Icon size={15}/>}<span>{key==="SPACE"?"Space":key==="BACKSPACE"?"Delete":key==="DONE"?"Done":key==="SHIFT"?(shift?"Shift on":"Shift"):key==="CLEAR"?"Clear":key}</span></button>; })}
       </div>
     </div>
     <footer><span>Enter / ✕ Select</span><span>Esc / ○ Close</span><span>Letters and symbols insert at the cursor</span></footer>
