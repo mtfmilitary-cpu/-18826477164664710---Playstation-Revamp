@@ -13,24 +13,9 @@ export default function VirtualCursor() {
     const posRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
     const lastHoverRef = useRef(null);
     const cursorRef = useRef(null);
-    const [forceShow, setForceShow] = useState(false);
-
-    useEffect(() => {
-        setForceShow(false);
-    }, [location.pathname]);
-
-    useEffect(() => {
-        const handleKeyDown = (e) => {
-            if (e.key === 'Escape') {
-                setForceShow(true);
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
-
-    // Determine if cursor should be hidden (phone controller or showcase page)
-    const isHidden = (location.pathname === '/controller' || location.pathname === '/showcase') && !forceShow;
+    // The console never renders a visible pointer. Keep the virtual position and
+    // hit-testing logic alive so joystick clicks and existing controller flows still work.
+    const isHidden = location.pathname === '/controller' || location.pathname === '/showcase';
 
     // Update internal ref for the animation loop
     useEffect(() => {
@@ -143,7 +128,9 @@ export default function VirtualCursor() {
 
             <div
                 ref={cursorRef}
+                aria-hidden="true"
                 style={{
+                    display: "none",
                     position: "fixed",
                     top: 0,
                     left: 0,
