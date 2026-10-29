@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld("consoleBridge", Object.freeze({
   openBluetoothSettings: () => ipcRenderer.invoke("console:open-bluetooth-settings"),
   getControllerStackStatus: () => ipcRenderer.invoke("console:controller-stack-status"),
   installControllerStack: () => ipcRenderer.invoke("console:install-controller-stack"),
+  launchControllerEmulator: () => ipcRenderer.invoke("console:launch-controller-emulator"),
   onControllerSetupProgress: (callback) => {
     if (typeof callback !== "function") return () => {};
     const listener = (_event, progress) => callback(progress);
