@@ -22,3 +22,8 @@
 .steam-notice-error{border-radius:4px}
 @media(min-width:1200px){.steam-store-page:has(.steam-detail-panel) .steam-store-grid{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}}
 @media(max-width:700px){.steam-store-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.steam-store-card-title{font-size:12px;padding:9px}.steam-store-card-price{font-size:11px;padding:0 9px}}
+
+
+.steam-store-heading-actions{display:flex;align-items:center;gap:16px;flex:none}
+.steam-full-store-link{display:inline-flex;align-items:center;gap:8px;text-decoration:none;white-space:nowrap}
+@media(max-width:760px){.steam-store-heading-actions{align-items:flex-end;flex-direction:column-reverse;gap:10px}.steam-full-store-link{font-size:11px}}
