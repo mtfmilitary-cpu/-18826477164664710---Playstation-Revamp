@@ -38,9 +38,27 @@ export default function PeerCallPanel({ party, username }) {
   const peerIdRef = useRef(makePeerId());
   const usernameRef = useRef(username);
   const partyRef = useRef(party);
+  const selectedInputRef = useRef("");
+  const selectedOutputRef = useRef("");
 
   usernameRef.current = username;
   partyRef.current = party;
+
+  useEffect(() => {
+    const onInputSelected = (event) => { selectedInputRef.current = String(event.detail?.deviceId || ""); };
+    const onOutputSelected = (event) => {
+      selectedOutputRef.current = String(event.detail?.deviceId || "");
+      for (const audio of audioElementsRef.current.values()) {
+        if (typeof audio.setSinkId === "function") audio.setSinkId(selectedOutputRef.current).catch(() => setError("This browser could not switch party audio to that output device."));
+      }
+    };
+    window.addEventListener("console:audio-input-selected", onInputSelected);
+    window.addEventListener("console:audio-output-selected", onOutputSelected);
+    return () => {
+      window.removeEventListener("console:audio-input-selected", onInputSelected);
+      window.removeEventListener("console:audio-output-selected", onOutputSelected);
+    };
+  }, []);
 
   const updatePeers = useCallback(() => {
     setPeers([...peerNamesRef.current.entries()].map(([id, name]) => ({
@@ -90,6 +108,9 @@ export default function PeerCallPanel({ party, username }) {
         audioElementsRef.current.set(peerId, audio);
       }
       audio.srcObject = event.streams[0];
+      if (selectedOutputRef.current && typeof audio.setSinkId === "function") {
+        audio.setSinkId(selectedOutputRef.current).catch(() => setError("This browser could not switch party audio to that output device."));
+      }
       audio.play().catch(() => setError("Your browser blocked audio playback. Click Start voice again."));
     };
 
@@ -137,7 +158,9 @@ export default function PeerCallPanel({ party, username }) {
       return;
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
+      const audioConstraints = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+      if (selectedInputRef.current) audioConstraints.deviceId = { exact: selectedInputRef.current };
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints, video: false });
       localStreamRef.current = stream;
       setInCall(true);
       for (const pc of peersRef.current.values()) {
