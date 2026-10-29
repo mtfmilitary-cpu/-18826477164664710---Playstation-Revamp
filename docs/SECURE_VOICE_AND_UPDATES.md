@@ -17,6 +17,7 @@ STEAM_SESSION_SECRET=replace_with_at_least_32_random_bytes
 STEAM_OPENID_ORIGIN=http://127.0.0.1:3000
 CONSOLE_UPDATE_VERSION=0.0.0
 CONSOLE_UPDATE_MANIFEST_URL=
+CONSOLE_UPDATE_PUBLIC_KEY_B64=base64_encoded_DER_Ed25519_public_key
 ```
 
 For a hosted service, use HTTPS and configure the exact public HTTPS origin. Loopback HTTP is only for local development.
@@ -25,6 +26,7 @@ For a hosted service, use HTTPS and configure the exact public HTTPS origin. Loo
 1. Renderer calls `POST /api/v1/auth/steam/start` and opens the returned URL in the system browser.
 2. Steam returns to `GET /api/v1/auth/steam/return`; the backend checks state, exact callback, SteamID format, and asks Valve to validate the assertion.
 3. Renderer polls `GET /api/v1/auth/steam/poll?state=...`; the token is returned once and expires after one hour.
+4. Party REST calls send the JWT as a Bearer token. Before voice signaling, the client requests `POST /api/v1/auth/voice-ticket`; the backend returns a single-use ticket that expires in 60 seconds. The WebSocket URL carries only that short-lived ticket, not the one-hour JWT.
 
 **Current limits:** Party REST routes and the `/party-ws` / `/party-ws-secure` signaling paths now require a valid session token, and server-side party usernames are derived from the verified Steam ID. Open parties are still joinable by any authenticated user, and invitations still use display-name text rather than a verified Steam-friends relationship. Do not describe this as Steam-friends-only access.
 
@@ -35,4 +37,4 @@ Existing party audio is WebRTC peer-to-peer; a WebSocket signaling server alone 
 Use Electron's focused-window keyboard handling and the existing in-app power flow. Electron cannot reliably block the Windows key globally without native hooks or kiosk policy. This project does not install a global low-level keyboard interceptor.
 
 ## Delta updates
-The version-check endpoint and manifest-shape helper are not a complete updater. A production updater must verify a signed manifest, allowlist destinations, stage downloads, hash every file, atomically swap files, preserve rollback, and relaunch only after successful verification. Hashes alone do not authenticate an unsigned manifest.
+The updater currently supports only unpackaged repository builds with a writable `dist/` folder. It requires an HTTPS manifest envelope signed with Ed25519; configure `CONSOLE_UPDATE_PUBLIC_KEY_B64` with the base64-encoded DER SubjectPublicKeyInfo public key, and configure `CONSOLE_UPDATE_MANIFEST_URL`. The signed payload is JSON with `version` and `files: [{ path, sha256, url }]`. Assets must be hosted on the same HTTPS origin as the manifest, and only `dist/assets/*` plus `dist/index.html` can be replaced. Downloads are SHA-256 checked and staged before the user confirms applying the update; replacement includes rollback on failure. Packaged Electron builds are deliberately rejected; use a signed installer/update provider for production packages. Never trust a plain hash list served by an unsigned LAN server.
