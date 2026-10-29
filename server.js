@@ -668,7 +668,7 @@ server.on('upgrade', (request, socket, head) => {
       ws.mode = 'legacy';
       wss.emit('connection', ws, request);
     });
-  } else if (url.pathname === '/party-ws-secure') {
+  } else if (url.pathname === '/party-ws-secure' || url.pathname === '/party-ws') {
     const token = url.searchParams.get('token') || '';
     const identity = verifySteamToken(token);
     if (!identity) {
@@ -679,12 +679,6 @@ server.on('upgrade', (request, socket, head) => {
     wss.handleUpgrade(request, socket, head, (ws) => {
       ws.mode = 'party';
       ws.authenticatedUser = identity;
-      wss.emit('connection', ws, request);
-    });
-  } else if (url.pathname === '/party-ws') {
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      ws.mode = 'party';
-      ws.legacyUnauthenticated = true;
       wss.emit('connection', ws, request);
     });
   } else socket.destroy();
