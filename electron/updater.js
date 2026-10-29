@@ -75,6 +75,7 @@ export async function applyStagedDeltaUpdate({ app }) {
   const root = path.resolve(app.getAppPath(), "dist");
   const stageRoot = path.join(userData, "update-staging", pending.version);
   const backupRoot = path.join(userData, "update-backup", pending.version);
+  await fs.rm(backupRoot, { recursive: true, force: true });
   const replaced = [];
   try {
     for (const item of pending.files) {
