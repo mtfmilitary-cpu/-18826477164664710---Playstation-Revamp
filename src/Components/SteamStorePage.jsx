@@ -127,7 +127,7 @@ export default function SteamStorePage() {
         </section>
       )}
 
-      {!selected && (busy ? <p className="steam-muted"><LoaderCircle className="steam-spin" size={18} /> Loading Steam catalog…</p> :
+      {(busy ? <p className="steam-muted"><LoaderCircle className="steam-spin" size={18} /> Loading Steam catalog…</p> :
         items.length ? <section className="steam-store-grid">
           {items.map((game) => <button className="steam-store-card" key={game.appId} onClick={() => openDetails(game)}>
             <img src={game.cover} alt="" loading="lazy" />
