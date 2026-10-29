@@ -65,12 +65,16 @@ export default function OnScreenKeyboard() {
       if (element instanceof HTMLTextAreaElement) return !element.disabled && !element.readOnly;
       return !element.disabled && !element.readOnly && TEXT_TYPES.has((element.type || "text").toLowerCase());
     };
-    const onFocusIn = (event) => {
-      if (!isTextEntry(event.target)) return;
-      targetRef.current = event.target;
+    const showForTarget = (target) => {
+      if (!isTextEntry(target)) return;
+      targetRef.current = target;
       setVisible(true);
       setSelected(0);
       window.__onScreenKeyboardOpen = true;
+    };
+    const onFocusIn = (event) => showForTarget(event.target);
+    const onPointerDown = (event) => {
+      if (isTextEntry(event.target) && !window.__onScreenKeyboardOpen) showForTarget(event.target);
     };
     const onFocusOut = (event) => {
       if (event.target !== targetRef.current) return;
@@ -113,11 +117,13 @@ export default function OnScreenKeyboard() {
     };
     window.addEventListener("console:osk-action", onOskAction);
     document.addEventListener("focusin", onFocusIn);
+    document.addEventListener("pointerdown", onPointerDown, true);
     document.addEventListener("focusout", onFocusOut);
     window.addEventListener("keydown", onKeyDown, true);
     return () => {
       window.removeEventListener("console:osk-action", onOskAction);
       document.removeEventListener("focusin", onFocusIn);
+      document.removeEventListener("pointerdown", onPointerDown, true);
       document.removeEventListener("focusout", onFocusOut);
       window.removeEventListener("keydown", onKeyDown, true);
     };
