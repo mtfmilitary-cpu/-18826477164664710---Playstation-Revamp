@@ -16,7 +16,7 @@ Add these to local `.env` only; never commit real secrets:
 STEAM_SESSION_SECRET=replace_with_at_least_32_random_bytes
 STEAM_OPENID_ORIGIN=http://127.0.0.1:3000
 CONSOLE_UPDATE_VERSION=0.0.0
-CONSOLE_UPDATE_MANIFEST_URL=
+CONSOLE_UPDATE_MANIFEST_URL=https://your-host.example/manifest.signed.json
 CONSOLE_UPDATE_PUBLIC_KEY_B64=base64_encoded_DER_Ed25519_public_key
 ```
 
@@ -37,4 +37,14 @@ Existing party audio is WebRTC peer-to-peer; a WebSocket signaling server alone 
 Use Electron's focused-window keyboard handling and the existing in-app power flow. Electron cannot reliably block the Windows key globally without native hooks or kiosk policy. This project does not install a global low-level keyboard interceptor.
 
 ## Delta updates
+Create the signing key on a trusted machine and keep the private key off the CDN and out of Git:
+
+```bash
+openssl genpkey -algorithm ED25519 -out update-private.pem
+openssl pkey -in update-private.pem -pubout -outform DER -out update-public.der
+node -e "console.log(require('node:fs').readFileSync('update-public.der').toString('base64'))"
+node scripts/sign-update-manifest.js manifest.json manifest.signed.json update-private.pem
+```
+
+Copy the printed public-key value into `CONSOLE_UPDATE_PUBLIC_KEY_B64`; publish only `manifest.signed.json` and the referenced assets over HTTPS. `manifest.json` must contain a semantic `version` and `files` entries with `path`, `sha256`, and same-origin HTTPS `url` values. Set `CONSOLE_UPDATE_VERSION` to the same version.
 The updater currently supports only unpackaged repository builds with a writable `dist/` folder. It requires an HTTPS manifest envelope signed with Ed25519; configure `CONSOLE_UPDATE_PUBLIC_KEY_B64` with the base64-encoded DER SubjectPublicKeyInfo public key, and configure `CONSOLE_UPDATE_MANIFEST_URL`. The signed payload is JSON with `version` and `files: [{ path, sha256, url }]`. Assets must be hosted on the same HTTPS origin as the manifest, and only `dist/assets/*` plus `dist/index.html` can be replaced. Downloads are SHA-256 checked and staged before the user confirms applying the update; replacement includes rollback on failure. Packaged Electron builds are deliberately rejected; use a signed installer/update provider for production packages. Never trust a plain hash list served by an unsigned LAN server.
