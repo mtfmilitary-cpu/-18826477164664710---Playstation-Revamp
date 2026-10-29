@@ -5,7 +5,9 @@ Target branch: `electron-steam-console`.
 ## New modules
 - `server/steamAuth.js`: Steam OpenID 2.0 start/callback/poll flow. The backend validates the OpenID assertion directly with Valve and issues a one-hour HS256 token using Node's built-in crypto.
 - `server/updateService.js`: semantic-version comparison and update manifest shape validation.
-- `POST /api/v1/system/update-check`: mounted version-check endpoint; it reports the configured version and manifest URL but does not download or install updates.
+- `electron/updater.js`: Ed25519-signed manifest verification, HTTPS same-origin asset downloads, SHA-256 checks, staging, and rollback-capable replacement of changed built frontend assets. Electron exposes this through the restricted `checkForUpdates()` preload method.
+- `POST /api/v1/system/update-check`: mounted version-check endpoint; reports the configured version and manifest URL.
+- `consoleBridge.checkForUpdates()`: verifies and stages changed `dist/` assets, asks before applying, then restarts the app.
 
 ## Private configuration
 Add these to local `.env` only; never commit real secrets:
