@@ -314,7 +314,16 @@ ipcMain.handle("console:gameinput-start", async (event) => {
       if (!line || line.length > 8192) continue;
       try {
         const payload = JSON.parse(line);
-        if (payload?.type !== "gamepad-state" || payload?.source !== "gameinput") continue;
+        if (payload?.source !== "gameinput") continue;
+        if (payload?.type === "device-status" && payload?.connected === false) {
+          const disconnected = { type: "device-status", source: "gameinput", connected: false, receivedAt: Date.now() };
+          gameInputLastEventAt = disconnected.receivedAt;
+          if (mainWindow && !mainWindow.isDestroyed() && isTrustedLocalUrl(mainWindow.webContents.getURL())) {
+            mainWindow.webContents.send("console:gameinput-event", disconnected);
+          }
+          continue;
+        }
+        if (payload?.type !== "gamepad-state") continue;
         const finite = value => Number.isFinite(Number(value)) ? Math.max(-1, Math.min(1, Number(value))) : 0;
         const eventPayload = {
           type: "gamepad-state",
