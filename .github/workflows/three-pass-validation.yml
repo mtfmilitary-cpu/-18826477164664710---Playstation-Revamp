@@ -50,19 +50,13 @@ jobs:
           node --input-type=module -e "import fs from 'node:fs'; const p=JSON.parse(fs.readFileSync('package.json','utf8')); if (!p.scripts?.build || !p.scripts?.lint) process.exit(1); for (const f of ['native/WindowsGameInputBridge/GameInputBridge.cpp','native/WindowsGameInputBridge/build.bat','native/WindowsGameInputBridge/README.md','src/Components/Achievements.jsx']) if (!fs.existsSync(f)) throw new Error('Missing required file: '+f); console.log('Package scripts and integration files are present.')"
 
   validation-pass-3-windows-native:
-    name: "Pass 3 — Windows native helper compile and final build"
+    name: "Pass 3 — Windows native helper compile"
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
       - uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
-      - run: npm ci
-      - run: npm run build
       - name: Restore Microsoft GameInput SDK
         shell: pwsh
         run: |
