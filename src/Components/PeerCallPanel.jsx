@@ -38,8 +38,8 @@ export default function PeerCallPanel({ party, username }) {
   const peerIdRef = useRef(makePeerId());
   const usernameRef = useRef(username);
   const partyRef = useRef(party);
-  const selectedInputRef = useRef("");
-  const selectedOutputRef = useRef("");
+  const selectedInputRef = useRef(localStorage.getItem("console-audio-input") || "");
+  const selectedOutputRef = useRef(localStorage.getItem("console-audio-output") || "");
 
   usernameRef.current = username;
   partyRef.current = party;
