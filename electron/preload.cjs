@@ -18,6 +18,7 @@ function onQuickMenuToggle(callback) {
 contextBridge.exposeInMainWorld("consoleBridge", Object.freeze({
   runtime: "electron",
   platform: process.platform,
+  openSteamAuth: (url) => ipcRenderer.invoke("console:open-steam-auth", url),
   onQuickMenuToggle,
   toggleQuickMenu: () => ipcRenderer.invoke("console:toggle-quick-menu"),
   onNavigate,
