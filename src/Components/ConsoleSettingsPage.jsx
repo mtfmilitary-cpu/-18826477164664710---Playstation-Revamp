@@ -117,7 +117,13 @@ export default function ConsoleSettingsPage() {
 
   useEffect(() => {
     const unsubscribeInput = window.consoleBridge?.onGameInputEvent?.(event => {
-      if (!event || event.source !== "gameinput" || event.type !== "gamepad-state") return;
+      if (!event || event.source !== "gameinput") return;
+      if (event.type === "device-status" && event.connected === false) {
+        setNativeInput(null);
+        setNativeInputMessage("Native controller disconnected; browser input remains available as a fallback.");
+        return;
+      }
+      if (event.type !== "gamepad-state") return;
       setNativeInput(event);
       setNativeInputMessage("Receiving native GameInput readings.");
     });
