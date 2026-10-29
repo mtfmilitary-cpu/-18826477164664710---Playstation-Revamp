@@ -91,3 +91,51 @@
 @media (prefers-reduced-motion: reduce) {
  .quick-menu-scrim, .quick-menu-panel { animation:none; }
 }
+
+
+/* Galaxy stars for the Quick Menu, with independent slow twinkle cycles. */
+body[data-console-backdrop="galaxy"] .quick-menu-panel{
+  position:relative;
+  isolation:isolate;
+  overflow:hidden;
+}
+body[data-console-backdrop="galaxy"] .quick-menu-panel::before,
+body[data-console-backdrop="galaxy"] .quick-menu-panel::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  pointer-events:none;
+  background-repeat:repeat;
+}
+body[data-console-backdrop="galaxy"] .quick-menu-panel::before{
+  opacity:.3;
+  background-image:
+    radial-gradient(1px 1px at 9% 16%,#fff 98%,transparent),
+    radial-gradient(1.3px 1.3px at 25% 64%,#dce5ff 98%,transparent),
+    radial-gradient(1px 1px at 47% 38%,#fff 98%,transparent),
+    radial-gradient(1.4px 1.4px at 68% 81%,#fff 98%,transparent),
+    radial-gradient(1px 1px at 87% 24%,#e1d9ff 98%,transparent);
+  background-size:311px 271px;
+  animation:galaxy-menu-twinkle 13s ease-in-out infinite alternate;
+}
+body[data-console-backdrop="galaxy"] .quick-menu-panel::after{
+  opacity:.18;
+  background-image:
+    radial-gradient(1.5px 1.5px at 17% 82%,#fff 98%,transparent),
+    radial-gradient(1px 1px at 39% 12%,#b9d8ff 98%,transparent),
+    radial-gradient(1px 1px at 59% 56%,#fff 98%,transparent),
+    radial-gradient(1.2px 1.2px at 91% 69%,#f2dfff 98%,transparent);
+  background-size:397px 329px;
+  animation:galaxy-menu-twinkle 19s ease-in-out -8s infinite alternate-reverse;
+}
+@keyframes galaxy-menu-twinkle{
+  0%{opacity:.12;transform:translate3d(0,0,0)}
+  31%{opacity:.3}
+  63%{opacity:.2;transform:translate3d(1px,-1px,0)}
+  100%{opacity:.38;transform:translate3d(-1px,1px,0)}
+}
+@media(prefers-reduced-motion:reduce){
+  body[data-console-backdrop="galaxy"] .quick-menu-panel::before,
+  body[data-console-backdrop="galaxy"] .quick-menu-panel::after{animation:none;opacity:.25}
+}
