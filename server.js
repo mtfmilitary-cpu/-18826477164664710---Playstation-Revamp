@@ -147,6 +147,7 @@ app.post('/api/v1/party', (req, res) => {
 app.get('/api/v1/party/:partyId', (req, res) => {
   const room = partyRooms.get(req.params.partyId);
   if (!room) return res.status(404).json({ error: 'That party no longer exists.' });
+  if (!room.members.includes(req.authenticatedUser.username)) return res.status(403).json({ error: 'Join this party before reading its messages.' });
   res.json({ party: partySummary(room) });
 });
 
@@ -164,6 +165,7 @@ app.post('/api/v1/party/:partyId/invite', (req, res) => {
   const room = partyRooms.get(req.params.partyId);
   if (!room) return res.status(404).json({ error: 'That party no longer exists.' });
   const username = cleanLabel(req.body?.username, 'GamerPro').slice(0, 32);
+  if (!room.members.includes(username)) return res.status(403).json({ error: 'Join this party before inviting anyone.' });
   const friend = cleanLabel(req.body?.friend).slice(0, 32);
   if (!friend) return res.status(400).json({ error: 'Enter a friend name to invite.' });
   if (friend.toLowerCase() !== username.toLowerCase() && !room.members.includes(friend) && !room.invites.includes(friend)) {
