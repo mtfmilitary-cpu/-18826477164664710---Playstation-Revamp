@@ -1,5 +1,5 @@
 import { app, BrowserWindow, shell, ipcMain, dialog, globalShortcut, screen } from "electron";
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 import { fileURLToPath } from "node:url";
@@ -267,6 +267,97 @@ ipcMain.handle("console:renderer-diagnostic", (event, entry) => {
     detail: clean(entry.detail, 600),
     componentStack: clean(entry.componentStack, 900),
   });
+  return true;
+});
+
+// Native GameInput helper: only launch a repo-local executable and accept bounded JSONL events.
+let gameInputProcess = null;
+let gameInputLineBuffer = "";
+let gameInputLastEventAt = null;
+
+function stopGameInputBridge() {
+  if (gameInputProcess && !gameInputProcess.killed) {
+    gameInputProcess.kill();
+  }
+  gameInputProcess = null;
+  gameInputLineBuffer = "";
+}
+
+ipcMain.handle("console:gameinput-start", async (event) => {
+  if (!isTrustedLocalUrl(event.senderFrame?.url || "")) throw new Error("Untrusted renderer.");
+  if (process.platform !== "win32") throw new Error("Native GameInput is available on Windows only.");
+  if (gameInputProcess && !gameInputProcess.killed) return { started: true, alreadyRunning: true, lastEventAt: gameInputLastEventAt };
+  const candidates = [
+    path.join(projectRoot, "native", "WindowsGameInputBridge", "GameInputBridge.exe"),
+    path.join(projectRoot, "native", "WindowsGameInputBridge", "build", "GameInputBridge.exe"),
+  ];
+  const executable = candidates.find(candidate => fs.existsSync(candidate));
+  if (!executable) {
+    return { started: false, built: false, message: "The native helper has not been built yet. Open an x64 Visual Studio Native Tools prompt and run native\\WindowsGameInputBridge\\build.bat." };
+  }
+
+  gameInputLineBuffer = "";
+  const child = spawn(executable, [], { cwd: path.dirname(executable), windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+  gameInputProcess = child;
+  child.stdout.setEncoding("utf8");
+  child.stdout.on("data", chunk => {
+    gameInputLineBuffer += chunk;
+    if (gameInputLineBuffer.length > 128 * 1024) {
+      gameInputLineBuffer = "";
+      diagnostic("GAMEINPUT-0003", "Native GameInput output exceeded its line-buffer limit.", null, "WARN");
+      return;
+    }
+    let newline;
+    while ((newline = gameInputLineBuffer.indexOf("\\n")) >= 0) {
+      const line = gameInputLineBuffer.slice(0, newline).trim();
+      gameInputLineBuffer = gameInputLineBuffer.slice(newline + 1);
+      if (!line || line.length > 8192) continue;
+      try {
+        const payload = JSON.parse(line);
+        if (payload?.type !== "gamepad-state" || payload?.source !== "gameinput") continue;
+        const finite = value => Number.isFinite(Number(value)) ? Math.max(-1, Math.min(1, Number(value))) : 0;
+        const eventPayload = {
+          type: "gamepad-state",
+          source: "gameinput",
+          buttons: Number.isSafeInteger(payload.buttons) && payload.buttons >= 0 ? payload.buttons : 0,
+          leftTrigger: finite(payload.leftTrigger), rightTrigger: finite(payload.rightTrigger),
+          leftX: finite(payload.leftX), leftY: finite(payload.leftY),
+          rightX: finite(payload.rightX), rightY: finite(payload.rightY),
+          receivedAt: Date.now(),
+        };
+        gameInputLastEventAt = eventPayload.receivedAt;
+        if (mainWindow && !mainWindow.isDestroyed() && isTrustedLocalUrl(mainWindow.webContents.getURL())) {
+          mainWindow.webContents.send("console:gameinput-event", eventPayload);
+        }
+      } catch {
+        diagnostic("GAMEINPUT-0004", "Malformed JSONL output from the native GameInput helper was ignored.", null, "WARN");
+      }
+    }
+  });
+  child.stderr.setEncoding("utf8");
+  child.stderr.on("data", chunk => {
+    const safe = String(chunk || "").replace(/https?:\\/\\/[^\\s]+/g, "[URL REDACTED]").slice(0, 400);
+    if (safe.trim()) diagnostic("GAMEINPUT-0005", "Native GameInput helper reported a diagnostic.", null, "WARN", { detail: safe.trim() });
+  });
+  child.on("error", error => {
+    diagnostic("GAMEINPUT-0001", "Native GameInput helper could not start.", error, "WARN");
+    if (gameInputProcess === child) gameInputProcess = null;
+  });
+  child.on("exit", (code, signal) => {
+    diagnostic("GAMEINPUT-0002", "Native GameInput helper exited.", null, code === 0 ? "INFO" : "WARN", {
+      exitCode: Number.isInteger(code) ? code : null,
+      signal: String(signal || "").slice(0, 40),
+    });
+    if (gameInputProcess === child) gameInputProcess = null;
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("console:gameinput-stopped", { code: Number.isInteger(code) ? code : null });
+  });
+  diagnostic("GAMEINPUT-0000", "Native GameInput helper start requested.", null, "INFO");
+  return { started: true, built: true, message: "Native GameInput helper started. Connect a controller to check live readings." };
+});
+
+ipcMain.handle("console:gameinput-stop", (event) => {
+  if (!isTrustedLocalUrl(event.senderFrame?.url || "")) return false;
+  stopGameInputBridge();
   return true;
 });
 
