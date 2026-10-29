@@ -31,12 +31,12 @@ export async function checkAndStageDeltaUpdate({ app, manifestUrl, publicKeyB64,
   const publicKey = createPublicKey({ key: Buffer.from(publicKeyB64, "base64"), format: "der", type: "spki" });
   if (!verify(null, payloadBytes, publicKey, signature)) throw new Error("Update manifest signature is invalid.");
   const manifest = validateManifestShape(JSON.parse(payloadBytes.toString("utf8")));
+  if (typeof manifest.version !== "string" || !/^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$/.test(manifest.version)) throw new Error("Manifest version is invalid.");
   const versionParts = (value) => value.split("-")[0].split(".").map(Number);
   const nextParts = versionParts(manifest.version), currentParts = versionParts(String(currentVersion || "0.0.0"));
   let versionComparison = 0;
   for (let i = 0; i < 3; i += 1) { if ((nextParts[i] || 0) !== (currentParts[i] || 0)) { versionComparison = (nextParts[i] || 0) - (currentParts[i] || 0); break; } }
   if (versionComparison <= 0) return { updateAvailable: false, filesStaged: 0, version: currentVersion };
-  if (typeof manifest.version !== "string" || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(manifest.version)) throw new Error("Manifest version is invalid.");
   if (manifest.files.length > MAX_FILES) throw new Error("Manifest contains too many files.");
   const root = path.resolve(app.getAppPath(), "dist");
   const stageRoot = path.join(app.getPath("userData"), "update-staging", manifest.version);
