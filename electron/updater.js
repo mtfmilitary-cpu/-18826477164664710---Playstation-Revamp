@@ -31,7 +31,6 @@ export async function checkAndStageDeltaUpdate({ app, manifestUrl, publicKeyB64,
   const publicKey = createPublicKey({ key: Buffer.from(publicKeyB64, "base64"), format: "der", type: "spki" });
   if (!verify(null, payloadBytes, publicKey, signature)) throw new Error("Update manifest signature is invalid.");
   const manifest = validateManifestShape(JSON.parse(payloadBytes.toString("utf8")));
-  if (typeof manifest.version !== "string" || !/^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$/.test(manifest.version)) throw new Error("Manifest version is invalid.");
   const versionParts = (value) => value.split("-")[0].split(".").map(Number);
   const nextParts = versionParts(manifest.version), currentParts = versionParts(String(currentVersion || "0.0.0"));
   let versionComparison = 0;
