@@ -2,9 +2,9 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Headphones, Mic, MicOff, PhoneOff, Send, Wifi, WifiOff, Volume2 } from "lucide-react";
 import "./PeerCallPanel.css";
 
-function getSignalingUrl(token) {
+function getSignalingUrl(ticket) {
   const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return scheme + "//" + window.location.host + "/party-ws-secure?token=" + encodeURIComponent(token);
+  return scheme + "//" + window.location.host + "/party-ws-secure?ticket=" + encodeURIComponent(ticket);
 }
 const rtcConfig = {
   iceServers: [
@@ -187,7 +187,13 @@ export default function PeerCallPanel({ party, username }) {
       for (const pc of peersRef.current.values()) {
         stream.getTracks().forEach((track) => pc.addTrack(track, stream));
       }
-      const socket = new WebSocket(getSignalingUrl(sessionToken));
+      const ticketResponse = await fetch("/api/v1/auth/voice-ticket", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + sessionToken },
+      });
+      const ticketData = await ticketResponse.json().catch(() => ({}));
+      if (!ticketResponse.ok || !ticketData.ticket) throw new Error(ticketData.error || "Could not authorize the voice connection.");
+      const socket = new WebSocket(getSignalingUrl(ticketData.ticket));
       socketRef.current = socket;
       socket.onopen = () => {
         setConnected(true);
