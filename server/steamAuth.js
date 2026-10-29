@@ -3,6 +3,7 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 const router = express.Router();
 const pending = new Map();
+const voiceTickets = new Map();
 const TTL_MS = 5 * 60 * 1000;
 const ISSUER = "playstation-revamp";
 const AUDIENCE = "electron-steam-console";
@@ -109,6 +110,23 @@ router.get("/steam/return", async (req, res) => {
     res.status(502).send("Steam could not validate this sign-in. Return to the console and try again.");
   }
 });
+router.post("/voice-ticket", (req, res) => {
+  const authorization = String(req.get("authorization") || "");
+  const token = authorization.match(/^Bearer\\s+(.+)$/i)?.[1] || "";
+  const identity = verifySteamToken(token);
+  if (!identity) return res.status(401).json({ error: "A verified Steam session is required." });
+  for (const [ticket, entry] of voiceTickets) if (entry.expiresAt <= Date.now()) voiceTickets.delete(ticket);
+  const ticket = randomBytes(24).toString("hex");
+  voiceTickets.set(ticket, { identity, expiresAt: Date.now() + 60_000 });
+  res.json({ ticket, expiresInSeconds: 60 });
+});
+export function consumeVoiceTicket(ticket) {
+  if (typeof ticket !== "string" || !/^[a-f0-9]{48}$/.test(ticket)) return null;
+  const entry = voiceTickets.get(ticket);
+  voiceTickets.delete(ticket);
+  if (!entry || entry.expiresAt <= Date.now()) return null;
+  return entry.identity;
+}
 router.get("/steam/poll", (req, res) => {
   cleanup();
   const state = String(req.query.state || "");
