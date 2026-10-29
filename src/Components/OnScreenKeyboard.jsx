@@ -37,7 +37,10 @@ export default function OnScreenKeyboard() {
     setVisible(false);
     window.__onScreenKeyboardOpen = false;
     const target = targetRef.current;
-    if (target?.isConnected) target.focus({ preventScroll: true });
+    targetRef.current = null;
+    // Do not restore focus to the old text field: that used to keep typing focus
+    // trapped and made the keyboard reappear when users tried to navigate away.
+    if (target?.isConnected && document.activeElement === target) target.blur();
   }, []);
 
   const activate = useCallback((key) => {
@@ -74,7 +77,14 @@ export default function OnScreenKeyboard() {
     };
     const onFocusIn = (event) => showForTarget(event.target);
     const onPointerDown = (event) => {
-      if (isTextEntry(event.target) && !window.__onScreenKeyboardOpen) showForTarget(event.target);
+      const target = event.target;
+      if (isTextEntry(target)) {
+        if (!window.__onScreenKeyboardOpen || targetRef.current !== target) showForTarget(target);
+        return;
+      }
+      // Clicking any real app control dismisses the keyboard first, without
+      // swallowing the click. Interactions inside the keyboard stay untouched.
+      if (window.__onScreenKeyboardOpen && !target?.closest?.(".onscreen-keyboard")) close();
     };
     const onFocusOut = (event) => {
       if (event.target !== targetRef.current) return;
