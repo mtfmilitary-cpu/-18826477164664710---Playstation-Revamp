@@ -1,5 +1,9 @@
 name: Three-pass validation
 
+concurrency:
+  group: three-pass-validation-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:
@@ -10,7 +14,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   validation-pass-1-build:
@@ -22,18 +26,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install
-      - name: Commit regenerated lockfile when validating a branch push
-        if: github.event_name == 'push' && github.ref == 'refs/heads/electron-steam-console'
-        shell: bash
-        run: |
-          if ! git diff --quiet -- package-lock.json; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add package-lock.json
-            git commit -m "chore: sync npm lockfile [skip ci]"
-            git push origin HEAD:electron-steam-console
-          fi
+      - run: npm ci
       - run: npm run build
       - run: node --check server.js && node --check electron/main.js && node --check electron/preload.cjs
 
@@ -46,7 +39,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install
+      - run: npm ci
       - name: Full repository lint audit (known baseline debt)
         run: npm run lint
         continue-on-error: true
@@ -68,7 +61,7 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
-      - run: npm install
+      - run: npm ci
       - run: npm run build
       - name: Restore Microsoft GameInput SDK
         shell: pwsh
