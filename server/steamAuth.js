@@ -10,7 +10,7 @@ const AUDIENCE = "electron-steam-console";
 const b64 = (value) => Buffer.from(value).toString("base64url");
 function signingSecret() {
   const value = process.env.STEAM_SESSION_SECRET || "";
-  if (Buffer.byteLength(value) < 32) throw new Error("STEAM_SESSION_SECRET must be at least 32 bytes.");
+  if (Buffer.byteLength(value) < 32 || /^(REPLACE_WITH|CHANGE_ME|PASTE_)/i.test(value)) throw new Error("STEAM_SESSION_SECRET must be a real random secret of at least 32 bytes, not a placeholder.");
   return value;
 }
 function signToken(payload) {
