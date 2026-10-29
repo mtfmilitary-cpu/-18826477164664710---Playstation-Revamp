@@ -101,7 +101,7 @@ export default function OnScreenKeyboard() {
         const next = event.key === "ArrowLeft" ? Math.max(0, current - 1)
           : event.key === "ArrowRight" ? Math.min(FLAT_KEYS.length - 1, current + 1)
           : event.key === "ArrowUp" ? Math.max(0, current - 10)
-          : Math.min(flatKeys.length - 1, current + 10);
+          : Math.min(FLAT_KEYS.length - 1, current + 10);
         setSelected(next);
         return;
       }
@@ -153,11 +153,11 @@ export default function OnScreenKeyboard() {
         if (direction) {
           lastMove = timestamp;
           const current = selectedRef.current;
-          const next = direction === "left" ? Math.max(0,current-1) : direction === "right" ? Math.min(flatKeys.length-1,current+1)
-            : direction === "up" ? Math.max(0,current-10) : Math.min(flatKeys.length-1,current+10);
+          const next = direction === "left" ? Math.max(0,current-1) : direction === "right" ? Math.min(FLAT_KEYS.length-1,current+1)
+            : direction === "up" ? Math.max(0,current-10) : Math.min(FLAT_KEYS.length-1,current+10);
           setSelected(next);
         }
-        if (rising(0)) activate(flatKeys[selectedRef.current]);
+        if (rising(0)) activate(FLAT_KEYS[selectedRef.current]);
         if (rising(1) || rising(8)) close();
       }
       frame = requestAnimationFrame(poll);
