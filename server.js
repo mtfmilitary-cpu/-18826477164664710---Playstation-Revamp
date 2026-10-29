@@ -9,6 +9,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { diagnostic } from './server/diagnostics.js';
+import steamAuthRouter, { verifySteamToken } from './server/steamAuth.js';
+import { getUpdateStatus } from './server/updateService.js';
 
 // Load private project settings from the root .env file without exposing them to the renderer.
 // Existing process environment variables take precedence over values in .env.
@@ -83,6 +85,19 @@ app.use(express.json({ limit: '64kb' }));
 app.use('/api/v1', (req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
+});
+
+app.use('/api/v1/auth', steamAuthRouter);
+
+app.post('/api/v1/system/update-check', (req, res) => {
+  try {
+    const currentVersion = String(req.body?.currentVersion || '').trim();
+    res.json(getUpdateStatus(currentVersion));
+  } catch (error) {
+    res.status(Number.isInteger(error?.status) ? error.status : 503).json({
+      error: Number.isInteger(error?.status) ? error.message : 'Update status is not configured correctly.',
+    });
+  }
 });
 
 
