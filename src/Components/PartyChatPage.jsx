@@ -5,6 +5,8 @@ import "./SocialPages.css";
 
 const API = "/api/v1/party";
 const getUsername = () => {
+  const signedInId = sessionStorage.getItem("console-steam-id");
+  if (signedInId) return "Steam_" + String(signedInId).slice(-6);
   const saved = localStorage.getItem("console-username");
   return saved?.trim() || "GamerPro";
 };
@@ -74,7 +76,8 @@ export default function PartyChatPage() {
       const response = await fetch("/api/v1/auth/steam/start", { method: "POST" });
       const start = await response.json();
       if (!response.ok) throw new Error(start.error || "Could not start Steam sign-in.");
-      window.open(start.authUrl, "_blank", "noopener,noreferrer");
+      if (window.consoleBridge?.openSteamAuth) await window.consoleBridge.openSteamAuth(start.authUrl);
+      else window.open(start.authUrl, "_blank", "noopener,noreferrer");
       let attempts = 0;
       let pollInFlight = false;
       authPollRef.current = setInterval(async () => {
