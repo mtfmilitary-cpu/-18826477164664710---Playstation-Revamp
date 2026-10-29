@@ -64,7 +64,8 @@
 - **Implemented in code:** Party creation, open-party listing, joining/leaving, invites, party messages, and a party room UI against the local API.
 - **Implemented in code:** WebSocket signaling and WebRTC peer-to-peer voice/data-channel scaffolding; microphone mute and selected audio input/output handling are present in the client.
 - **Partial / needs testing:** Microphone switching and output routing use browser/Electron media APIs and must be tested on Windows hardware. Output routing uses `setSinkId` where supported; this is not system-wide Windows audio control.
-- **Important security limitation:** Party names and usernames supplied by the client are not proof of Steam identity. **Steam-friends-only access is not securely enforced yet.** Do not treat the current invite UI or submitted usernames as authentication.
+- **Security upgrade added:** Party REST routes require a valid server-issued Steam OpenID session token; the backend derives party usernames from the verified SteamID. Party signaling WebSockets require a one-time, 60-second voice ticket minted from that session. The Steam OpenID flow and signing secret require local `.env` configuration.
+- **Important remaining limitations:** Open parties can be joined by any authenticated user; invite targets are still display-name strings rather than verified Steam-friend relationships. **Steam-friends-only access is not enforced.** Voice media remains peer-to-peer WebRTC; the new authentication and signaling checks do not create a central audio relay or hide peer IP addresses.
 
 ### Customize Console and devices
 - **Implemented in code:** Inline Quick Menu appearance controls for accent color, backdrop, and font, stored in local storage and applied to the UI.
@@ -113,7 +114,7 @@ The package also defines `npm run desktop` for a build followed by Electron laun
 | **1.8A** | Next development stage: test and stabilize the current features; fix integration bugs found on the target PC. |
 | **1.8B** | Native controller pass: complete button mappings, focus recovery, and USB/Bluetooth testing. |
 | **1.8C** | Audio and party reliability: verify device switching, call cleanup/reconnect, and error reporting. |
-| **1.9A** | Steam identity and security foundation: authenticated Steam IDs and server-side authorization design. |
+| **1.9A** | Steam OpenID identity foundation and authenticated party REST/WebSocket signaling; friend-only authorization remains future work. |
 | **1.9B** | Friend-only parties: verify Steam friendship and enforce access on the backend for listing, joining, invites, and voice signaling. |
 | **1.9C** | Hosted multi-user backend and deployment/security hardening. |
 | **2.0** | Major milestone only after core integrations are tested and the desktop experience is stable; set the actual package version and release/tag then. |
