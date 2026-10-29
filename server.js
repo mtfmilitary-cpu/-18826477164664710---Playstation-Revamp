@@ -89,6 +89,19 @@ app.use('/api/v1', (req, res, next) => {
 
 app.use('/api/v1/auth', steamAuthRouter);
 
+function requireSteamSession(req, res, next) {
+  const authorization = String(req.get('authorization') || '');
+  const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1] || '';
+  const identity = verifySteamToken(token);
+  if (!identity) return res.status(401).json({ error: 'Sign in with Steam before using party features.' });
+  req.authenticatedUser = identity;
+  if (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) {
+    req.body.username = identity.username;
+  }
+  next();
+}
+app.use('/api/v1/party', requireSteamSession);
+
 app.post('/api/v1/system/update-check', (req, res) => {
   try {
     const currentVersion = String(req.body?.currentVersion || '').trim();
