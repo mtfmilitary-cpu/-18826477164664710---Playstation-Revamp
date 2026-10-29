@@ -367,6 +367,15 @@ ipcMain.handle("console:open-bluetooth-settings", async (event) => {
   return true;
 });
 
+ipcMain.handle("console:open-steam-auth", async (event, value) => {
+  if (!isTrustedLocalUrl(event.senderFrame?.url || "")) return false;
+  let url;
+  try { url = new URL(String(value || "")); } catch { return false; }
+  if (url.origin !== "https://steamcommunity.com" || url.pathname !== "/openid/login") return false;
+  await shell.openExternal(url.toString());
+  return true;
+});
+
 ipcMain.handle("console:toggle-quick-menu", (event) => {
   if (!isTrustedLocalUrl(event.senderFrame?.url || "")) return false;
   toggleQuickMenuOverlay();
