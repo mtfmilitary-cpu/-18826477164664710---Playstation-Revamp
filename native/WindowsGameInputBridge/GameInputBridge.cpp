@@ -7,6 +7,19 @@
 #include <chrono>
 #include <iomanip>
 
+#ifndef GAMEINPUT_API_VERSION
+#define GAMEINPUT_API_VERSION 0
+#endif
+#if GAMEINPUT_API_VERSION == 1
+using namespace GameInput::v1;
+#elif GAMEINPUT_API_VERSION == 2
+using namespace GameInput::v2;
+#elif GAMEINPUT_API_VERSION == 3
+using namespace GameInput::v3;
+#elif GAMEINPUT_API_VERSION >= 4
+using namespace GameInput::v4;
+#endif
+
 static void emitState(const GameInputGamepadState& s) {
     // stdout is a machine-readable newline-delimited JSON channel for Electron.
     std::cout << "{\"type\":\"gamepad-state\",\"source\":\"gameinput\",\"connected\":true,\"buttons\":"
