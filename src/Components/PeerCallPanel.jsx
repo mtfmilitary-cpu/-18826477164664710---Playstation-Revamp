@@ -45,7 +45,30 @@ export default function PeerCallPanel({ party, username }) {
   partyRef.current = party;
 
   useEffect(() => {
-    const onInputSelected = (event) => { selectedInputRef.current = String(event.detail?.deviceId || ""); };
+    const onInputSelected = async (event) => {
+      selectedInputRef.current = String(event.detail?.deviceId || "");
+      const currentStream = localStreamRef.current;
+      if (!currentStream || !navigator.mediaDevices?.getUserMedia) return;
+      try {
+        const constraints = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+        if (selectedInputRef.current) constraints.deviceId = { exact: selectedInputRef.current };
+        const nextStream = await navigator.mediaDevices.getUserMedia({ audio: constraints, video: false });
+        const nextTrack = nextStream.getAudioTracks()[0];
+        if (!nextTrack) throw new Error("The selected input did not provide an audio track.");
+        const replacements = [];
+        for (const pc of peersRef.current.values()) {
+          const sender = pc.getSenders().find((candidate) => candidate.track?.kind === "audio");
+          if (sender) replacements.push(sender.replaceTrack(nextTrack));
+          else pc.addTrack(nextTrack, nextStream);
+        }
+        await Promise.all(replacements);
+        currentStream.getTracks().forEach((track) => track.stop());
+        localStreamRef.current = nextStream;
+        setError("");
+      } catch (error) {
+        setError(error.message || "Couldn't switch to the selected microphone.");
+      }
+    };
     const onOutputSelected = (event) => {
       selectedOutputRef.current = String(event.detail?.deviceId || "");
       for (const audio of audioElementsRef.current.values()) {
