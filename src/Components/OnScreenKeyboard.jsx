@@ -120,7 +120,6 @@ export default function OnScreenKeyboard() {
       document.removeEventListener("focusin", onFocusIn);
       document.removeEventListener("focusout", onFocusOut);
       window.removeEventListener("keydown", onKeyDown, true);
-      window.__onScreenKeyboardOpen = false;
     };
   }, [activate, close]);
 
