@@ -655,9 +655,23 @@ server.on('upgrade', (request, socket, head) => {
       ws.mode = 'legacy';
       wss.emit('connection', ws, request);
     });
+  } else if (url.pathname === '/party-ws-secure') {
+    const token = url.searchParams.get('token') || '';
+    const identity = verifySteamToken(token);
+    if (!identity) {
+      socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      ws.mode = 'party';
+      ws.authenticatedUser = identity;
+      wss.emit('connection', ws, request);
+    });
   } else if (url.pathname === '/party-ws') {
     wss.handleUpgrade(request, socket, head, (ws) => {
       ws.mode = 'party';
+      ws.legacyUnauthenticated = true;
       wss.emit('connection', ws, request);
     });
   } else socket.destroy();
@@ -695,7 +709,9 @@ wss.on('connection', (ws) => {
       diagnostic('PARTY-WS-0001', 'Party voice signaling join received.', null, 'INFO');
       const partyId = String(message.partyId || '').slice(0, 80);
       const peerId = String(message.peerId || '').slice(0, 100);
-      const username = String(message.username || 'Party member').trim().slice(0, 32);
+      const username = ws.authenticatedUser
+        ? ws.authenticatedUser.username
+        : String(message.username || 'Party member').trim().slice(0, 32);
       if (!partyId || !peerId) {
         ws.send(JSON.stringify({ type: 'error', message: 'Party ID and peer ID are required.' }));
         return;
