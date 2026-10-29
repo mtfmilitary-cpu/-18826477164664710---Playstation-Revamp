@@ -9,7 +9,7 @@
 
 static void emitState(const GameInputGamepadState& s) {
     // stdout is a machine-readable newline-delimited JSON channel for Electron.
-    std::cout << "{\"type\":\"gamepad-state\",\"source\":\"gameinput\",\"buttons\":"
+    std::cout << "{\"type\":\"gamepad-state\",\"source\":\"gameinput\",\"connected\":true,\"buttons\":"
               << static_cast<unsigned long long>(s.buttons)
               << ",\"leftTrigger\":" << s.leftTrigger
               << ",\"rightTrigger\":" << s.rightTrigger
@@ -17,6 +17,11 @@ static void emitState(const GameInputGamepadState& s) {
               << ",\"leftY\":" << s.leftThumbstickY
               << ",\"rightX\":" << s.rightThumbstickX
               << ",\"rightY\":" << s.rightThumbstickY << "}\n";
+    std::cout.flush();
+}
+
+static void emitDisconnected() {
+    std::cout << "{\"type\":\"device-status\",\"source\":\"gameinput\",\"connected\":false}\n";
     std::cout.flush();
 }
 
@@ -53,6 +58,7 @@ int wmain() {
             }
             reading->Release();
         } else if (selectedDevice) {
+            emitDisconnected();
             selectedDevice->Release();
             selectedDevice = nullptr;
             havePrevious = false;
