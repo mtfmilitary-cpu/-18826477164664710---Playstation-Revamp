@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { diagnostic } from './server/diagnostics.js';
-import steamAuthRouter, { verifySteamToken } from './server/steamAuth.js';
+import steamAuthRouter, { verifySteamToken, consumeVoiceTicket } from './server/steamAuth.js';
 import { getUpdateStatus } from './server/updateService.js';
 
 // Load private project settings from the root .env file without exposing them to the renderer.
@@ -671,8 +671,8 @@ server.on('upgrade', (request, socket, head) => {
       wss.emit('connection', ws, request);
     });
   } else if (url.pathname === '/party-ws-secure' || url.pathname === '/party-ws') {
-    const token = url.searchParams.get('token') || '';
-    const identity = verifySteamToken(token);
+    const ticket = url.searchParams.get('ticket') || '';
+    const identity = consumeVoiceTicket(ticket);
     if (!identity) {
       socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
       socket.destroy();
