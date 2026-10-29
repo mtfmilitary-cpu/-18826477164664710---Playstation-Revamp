@@ -3,12 +3,9 @@ import { Headphones, Mic, MicOff, PhoneOff, Send, Wifi, WifiOff, Volume2 } from 
 import "./PeerCallPanel.css";
 
 const SIGNAL_PATH = "/party-ws";
-const configuredVoipServer = String(import.meta.env.VITE_VOIP_SERVER_URL || "").trim();
-
-function getSignalingUrl() {
-  if (configuredVoipServer) return configuredVoipServer.replace(/\/$/, "");
+function getSignalingUrl(token) {
   const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${scheme}//${window.location.host}${SIGNAL_PATH}`;
+  return scheme + "//" + window.location.host + "/party-ws-secure?token=" + encodeURIComponent(token);
 }
 const rtcConfig = {
   iceServers: [
@@ -176,6 +173,8 @@ export default function PeerCallPanel({ party, username }) {
   const startVoice = useCallback(async () => {
     setError("");
     if (!partyRef.current?.id) return;
+    const sessionToken = sessionStorage.getItem("console-steam-token") || "";
+    if (!sessionToken) { setError("Sign in with Steam before starting party voice."); return; }
     if (!navigator.mediaDevices?.getUserMedia) {
       setError("Microphone access requires a secure context. Use the desktop app or an HTTPS deployment.");
       return;
@@ -189,7 +188,7 @@ export default function PeerCallPanel({ party, username }) {
       for (const pc of peersRef.current.values()) {
         stream.getTracks().forEach((track) => pc.addTrack(track, stream));
       }
-      const socket = new WebSocket(getSignalingUrl());
+      const socket = new WebSocket(getSignalingUrl(sessionToken));
       socketRef.current = socket;
       socket.onopen = () => {
         setConnected(true);
