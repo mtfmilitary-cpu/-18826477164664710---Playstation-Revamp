@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Headphones, Users, Plus, LogOut, RefreshCw, MessageCircle } from "lucide-react";
 import PeerCallPanel from "./PeerCallPanel";
 import "./SocialPages.css";
@@ -19,9 +19,13 @@ export default function PartyChatPage() {
   const [messageDraft, setMessageDraft] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [authToken, setAuthToken] = useState(() => sessionStorage.getItem("console-steam-token") || "");
+  const [authPending, setAuthPending] = useState(false);
+  const authPollRef = useRef(null);
 
   const request = useCallback(async (url, options = {}) => {
-    const response = await fetch(url, { ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } });
+    const token = sessionStorage.getItem("console-steam-token") || "";
+    const response = await fetch(url, { ...options, headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}), ...(options.headers || {}) } });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || "Party chat request failed.");
     return data;
@@ -43,7 +47,7 @@ export default function PartyChatPage() {
     const timer = setInterval(loadParties, 3000);
     fetch("/api/v1/profile/me", { cache: "no-store" }).then((response) => response.json()).then((profile) => {
       setSteamProfile(profile);
-      if (profile?.personaName) {
+      if (profile?.personaName && !sessionStorage.getItem("console-steam-token")) {
         setUsername(profile.personaName);
         localStorage.setItem("console-username", profile.personaName);
       }
@@ -60,6 +64,45 @@ export default function PartyChatPage() {
     const invited = sessionStorage.getItem("party-invite-friend");
     if (invited) { setInvite(invited); sessionStorage.removeItem("party-invite-friend"); }
   }, []);
+
+  useEffect(() => () => { if (authPollRef.current) clearInterval(authPollRef.current); }, []);
+
+  async function signInSteam() {
+    if (authPending || authToken) return;
+    setError(""); setAuthPending(true);
+    try {
+      const response = await fetch("/api/v1/auth/steam/start", { method: "POST" });
+      const start = await response.json();
+      if (!response.ok) throw new Error(start.error || "Could not start Steam sign-in.");
+      window.open(start.authUrl, "_blank", "noopener,noreferrer");
+      let attempts = 0;
+      let pollInFlight = false;
+      authPollRef.current = setInterval(async () => {
+        if (pollInFlight) return;
+        pollInFlight = true; attempts += 1;
+        try {
+          if (attempts > 200) { clearInterval(authPollRef.current); authPollRef.current = null; setAuthPending(false); setError("Steam sign-in timed out. Please try again."); return; }
+          const pollResponse = await fetch("/api/v1/auth/steam/poll?state=" + encodeURIComponent(start.state), { cache: "no-store" });
+          const result = await pollResponse.json();
+          if (!pollResponse.ok) throw new Error(result.error || "Steam sign-in expired.");
+          if (result.status === "complete" && result.token) {
+            clearInterval(authPollRef.current); authPollRef.current = null;
+            sessionStorage.setItem("console-steam-token", result.token); sessionStorage.setItem("console-steam-id", result.steamId);
+            const signedName = "Steam_" + String(result.steamId).slice(-6);
+            setAuthToken(result.token); setUsername(signedName); localStorage.setItem("console-username", signedName);
+            setAuthPending(false); setError(""); await loadParties();
+          }
+        } catch (err) { clearInterval(authPollRef.current); authPollRef.current = null; setAuthPending(false); setError(err.message || "Steam sign-in failed."); }
+        finally { pollInFlight = false; }
+      }, 1500);
+    } catch (err) { setAuthPending(false); setError(err.message || "Steam sign-in failed."); }
+  }
+
+  function signOutSteam() {
+    if (authPollRef.current) clearInterval(authPollRef.current);
+    authPollRef.current = null; sessionStorage.removeItem("console-steam-token"); sessionStorage.removeItem("console-steam-id");
+    setAuthToken(""); setAuthPending(false); setParty(null); setParties([]); setError("You signed out of the console party session.");
+  }
 
   async function createParty(event) {
     event.preventDefault();
@@ -113,13 +156,13 @@ export default function PartyChatPage() {
   }
 
   return <main className="social-page party-page">
-    <header className="social-heading"><div><p className="social-eyebrow">PLAY TOGETHER</p><h1>Party Chat</h1><p>Create a party, message members, and start optional peer-to-peer voice chat.</p></div><span className="social-count"><Headphones size={18}/> Party system</span></header>
+    <header className="social-heading"><div><p className="social-eyebrow">PLAY TOGETHER</p><h1>Party Chat</h1><p>Verify your Steam account before creating or joining parties.</p></div><div className="social-count"><Headphones size={18}/> Party system <button className="social-secondary" onClick={authToken ? signOutSteam : signInSteam} disabled={authPending}>{authToken ? "Steam Verified · Sign Out" : authPending ? "Waiting for Steam…" : "Sign in with Steam"}</button></div></header>
     <div className="party-layout">
       <aside className="party-sidebar">
         <div className="party-username party-steam-identity"><label>Steam account</label><div>{steamProfile?.avatar ? <img src={steamProfile.avatar} alt=""/> : <span className="party-steam-avatar">{(steamProfile?.personaName || username).slice(0, 1)}</span>}<span><strong>{steamProfile?.personaName || username}</strong><small>{steamProfile?.connected ? "Using your Steam username" : "Steam profile not connected"}</small></span></div></div>
-        <form className="party-create" onSubmit={createParty}><label htmlFor="party-name">Start a party</label><input id="party-name" value={partyName} onChange={e => setPartyName(e.target.value)} maxLength={60} placeholder="Party name (optional)"/><button className="social-primary" disabled={busy}><Plus size={16}/> Create party</button></form>
+        <form className="party-create" onSubmit={createParty}><label htmlFor="party-name">Start a party</label><input id="party-name" value={partyName} onChange={e => setPartyName(e.target.value)} maxLength={60} placeholder="Party name (optional)"/><button className="social-primary" disabled={busy || !authToken}><Plus size={16}/> Create party</button></form>
         <div className="party-list-heading"><span>Open parties</span><button title="Refresh parties" onClick={loadParties}><RefreshCw size={15}/></button></div>
-        {parties.length === 0 ? <p className="social-muted">No active parties yet. Start one!</p> : parties.map(item => <button className={party?.id === item.id ? "party-list-item selected" : "party-list-item"} key={item.id} onClick={() => joinParty(item.id)} disabled={busy}><span><strong>{item.name}</strong><small>Host: {item.host}</small></span><span className="party-member-count"><Users size={13}/>{item.members.length}</span></button>)}
+        {parties.length === 0 ? <p className="social-muted">No active parties yet. Start one!</p> : parties.map(item => <button className={party?.id === item.id ? "party-list-item selected" : "party-list-item"} key={item.id} onClick={() => joinParty(item.id)} disabled={busy || !authToken}><span><strong>{item.name}</strong><small>Host: {item.host}</small></span><span className="party-member-count"><Users size={13}/>{item.members.length}</span></button>)}
       </aside>
       <section className="party-room">
         {!party ? <div className="party-empty"><MessageCircle size={42}/><h2>You're not in a party</h2><p>Create a party on the left or join an open room to start chatting.</p></div> : <>
