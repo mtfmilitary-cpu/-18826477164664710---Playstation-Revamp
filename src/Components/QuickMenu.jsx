@@ -43,6 +43,12 @@ export default function QuickMenu() {
   const navigate = useNavigate();
   const active = items.find((item) => item.id === selected) || items[0];
 
+  useEffect(() => {
+    document.body.dataset.consoleBackdrop = consoleSettings.backdrop || "blue";
+    document.documentElement.style.setProperty("--console-accent", consoleSettings.accent || "#2877dc");
+    document.documentElement.style.setProperty("--font-ui", consoleSettings.font === "System" ? "system-ui" : (consoleSettings.font || "Inter"));
+  }, [consoleSettings]);
+
   const moveMenuDirection = useCallback((direction) => {
     const panel = document.querySelector(".quick-menu-panel");
     if (!panel) return;
@@ -206,8 +212,14 @@ export default function QuickMenu() {
           moveMenuDirection(direction);
         }
         if (rising(0)) {
-          const currentIndex = items.findIndex((item) => item.id === selectedRef.current);
-          document.querySelectorAll(".quick-menu-item")[Math.max(0, currentIndex)]?.click();
+          const panel = document.querySelector(".quick-menu-panel");
+          const focused = document.activeElement;
+          if (panel && focused && panel.contains(focused) && focused.matches('button:not([disabled]), input:not([disabled]), select:not([disabled])')) {
+            focused.click();
+          } else {
+            const currentIndex = items.findIndex((item) => item.id === selectedRef.current);
+            document.querySelectorAll(".quick-menu-item")[Math.max(0, currentIndex)]?.click();
+          }
         }
         if (rising(1) || rising(8)) closeMenu();
       }
