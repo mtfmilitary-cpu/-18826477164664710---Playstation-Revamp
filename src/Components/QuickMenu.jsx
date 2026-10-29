@@ -353,7 +353,7 @@ export default function QuickMenu() {
             <button className="danger" onClick={() => power("shutdown")}>Shut down</button>
           </div>}
           {notice && <p className="quick-menu-notice" role="status">{notice}</p>}
-          <div className="quick-menu-footer"><Gamepad2 size={15}/> Scroll Lock to toggle <span>·</span> Esc to close</div>
+          <div className="quick-menu-footer"><Gamepad2 size={15}/> Options / Scroll Lock to toggle <span>·</span> PS button hold 5s when exposed <span>·</span> Esc to close</div>
         </div>
       </div>
     </section>
