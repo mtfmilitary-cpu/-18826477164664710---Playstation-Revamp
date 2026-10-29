@@ -117,7 +117,8 @@ async function createWindow() {
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("https://store.steampowered.com/") ||
-        url.startsWith("https://help.steampowered.com/")) {
+        url.startsWith("https://help.steampowered.com/") ||
+        url.startsWith("https://steamcommunity.com/openid/login")) {
       shell.openExternal(url);
     }
     return { action: "deny" };
