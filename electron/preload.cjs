@@ -29,6 +29,20 @@ contextBridge.exposeInMainWorld("consoleBridge", Object.freeze({
   getControllerStackStatus: () => ipcRenderer.invoke("console:controller-stack-status"),
   installControllerStack: () => ipcRenderer.invoke("console:install-controller-stack"),
   launchControllerEmulator: () => ipcRenderer.invoke("console:launch-controller-emulator"),
+  startGameInputBridge: () => ipcRenderer.invoke("console:gameinput-start"),
+  stopGameInputBridge: () => ipcRenderer.invoke("console:gameinput-stop"),
+  onGameInputEvent: (callback) => {
+    if (typeof callback !== "function") return () => {};
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on("console:gameinput-event", listener);
+    return () => ipcRenderer.removeListener("console:gameinput-event", listener);
+  },
+  onGameInputStopped: (callback) => {
+    if (typeof callback !== "function") return () => {};
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on("console:gameinput-stopped", listener);
+    return () => ipcRenderer.removeListener("console:gameinput-stopped", listener);
+  },
   onControllerSetupProgress: (callback) => {
     if (typeof callback !== "function") return () => {};
     const listener = (_event, progress) => callback(progress);
