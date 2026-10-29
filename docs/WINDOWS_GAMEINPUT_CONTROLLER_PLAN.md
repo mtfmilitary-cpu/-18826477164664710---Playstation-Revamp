@@ -19,17 +19,19 @@ Implemented in this branch:
 - Settings can inspect whether the existing DS4Windows/driver installation is present.
 - The Accessories and Controller Settings pages can open Windows Bluetooth settings.
 - The Settings page can request launch of an installed DS4Windows executable via a validated Electron IPC bridge.
-- The current renderer shows live input through the browser Gamepad API, and the settings page saves deadzone/profile preferences locally.
+- A native C++ GameInput helper source and build script are present. Electron can start the compiled helper, parse bounded JSONL controller samples, and forward validated values through a narrow preload IPC bridge to the Settings input monitor.
+- The Settings input monitor prefers native GameInput samples when received and keeps Chromium Gamepad API polling as a fallback.
+- A three-pass GitHub Actions workflow now checks the production build, lint/source integrity, and Windows native helper compilation.
 
 Not implemented or verified:
-- A compiled native GameInput helper or Node/Electron IPC stream for GameInput device-added/device-removed and state events.
-- Automatic Bluetooth re-pairing or a guarantee that Windows will reconnect a controller.
+- A verified compiled native GameInput helper on the user's machine. The helper is wired to Electron, but must be built with `native/WindowsGameInputBridge/build.bat` and tested on Windows.
+- GameInput device-added/device-removed notifications, robust controller identity selection, and automatic Bluetooth re-pairing or a guarantee that Windows will reconnect a controller.
 - A global virtual-controller output backend driven by the console's deadzone and button-remapping settings.
 - Exact PS4/PS5 parity in every game, including DualSense adaptive triggers, advanced haptics, touchpad gestures, audio, or microphone. Those depend on controller transport, native support, drivers, and the game.
 
 ## Recommended implementation sequence
 
-1. Build a small signed Windows native helper against Microsoft's GameInput SDK. Keep it separate from Electron's renderer and send a bounded JSON-lines event stream to the main process. Events should include device connected/disconnected, display name, stable device/container identifier, supported capabilities, button/axis state, and error codes. Avoid polling in the React renderer for production input.
+1. Compile and validate the existing Windows native helper against Microsoft's GameInput SDK. Keep it separate from Electron's renderer and send a bounded JSON-lines event stream to the main process. Extend the current state-only events with device connected/disconnected, display name, stable device/container identifier, supported capabilities, and error codes. Avoid polling in the React renderer for production input.
 2. Add a connection state machine: disconnected -> pairing/connecting -> connected -> reconnecting -> connected, with bounded retry/backoff and explicit user cancellation. Do not try to silently pair or bypass Windows Bluetooth permissions.
 3. Use GameInput as the console's native input source for live status, calibration, controller selection, and supported native feedback. Keep the Gamepad API as a fallback for browser preview.
 4. Treat output emulation as a selectable, separately validated backend. Before enabling a virtual controller, check whether Steam Input or another mapper is already active and explain how to avoid duplicate input. Do not silently install retired or unsigned kernel drivers.
