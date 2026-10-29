@@ -11,7 +11,7 @@ const getUsername = () => {
 
 export default function PartyChatPage() {
   const [username, setUsername] = useState(getUsername);
-  const [nameDraft, setNameDraft] = useState(getUsername);
+  const [steamProfile, setSteamProfile] = useState(null);
   const [partyName, setPartyName] = useState("");
   const [parties, setParties] = useState([]);
   const [party, setParty] = useState(null);
@@ -38,7 +38,18 @@ export default function PartyChatPage() {
     catch (err) { setError(err.message); }
   }, [request]);
 
-  useEffect(() => { loadParties(); const timer = setInterval(loadParties, 3000); return () => clearInterval(timer); }, [loadParties]);
+  useEffect(() => {
+    loadParties();
+    const timer = setInterval(loadParties, 3000);
+    fetch("/api/v1/profile/me", { cache: "no-store" }).then((response) => response.json()).then((profile) => {
+      setSteamProfile(profile);
+      if (profile?.personaName) {
+        setUsername(profile.personaName);
+        localStorage.setItem("console-username", profile.personaName);
+      }
+    }).catch(() => setSteamProfile(null));
+    return () => clearInterval(timer);
+  }, [loadParties]);
   useEffect(() => {
     if (!party?.id) return;
     const timer = setInterval(() => loadParty(party.id), 1500);
@@ -101,18 +112,11 @@ export default function PartyChatPage() {
     setParty(null); await loadParties();
   }
 
-  function saveUsername(event) {
-    event.preventDefault();
-    const next = nameDraft.trim().slice(0, 32);
-    if (!next) return;
-    localStorage.setItem("console-username", next); setUsername(next);
-  }
-
   return <main className="social-page party-page">
     <header className="social-heading"><div><p className="social-eyebrow">PLAY TOGETHER</p><h1>Party Chat</h1><p>Create a party, message members, and start optional peer-to-peer voice chat.</p></div><span className="social-count"><Headphones size={18}/> Party system</span></header>
     <div className="party-layout">
       <aside className="party-sidebar">
-        <form className="party-username" onSubmit={saveUsername}><label htmlFor="party-username">Your console name</label><div><input id="party-username" value={nameDraft} onChange={e => setNameDraft(e.target.value)} maxLength={32}/><button className="social-primary" type="submit">Save</button></div></form>
+        <div className="party-username party-steam-identity"><label>Steam account</label><div>{steamProfile?.avatar ? <img src={steamProfile.avatar} alt=""/> : <span className="party-steam-avatar">{(steamProfile?.personaName || username).slice(0, 1)}</span>}<span><strong>{steamProfile?.personaName || username}</strong><small>{steamProfile?.connected ? "Using your Steam username" : "Steam profile not connected"}</small></span></div></div>
         <form className="party-create" onSubmit={createParty}><label htmlFor="party-name">Start a party</label><input id="party-name" value={partyName} onChange={e => setPartyName(e.target.value)} maxLength={60} placeholder="Party name (optional)"/><button className="social-primary" disabled={busy}><Plus size={16}/> Create party</button></form>
         <div className="party-list-heading"><span>Open parties</span><button title="Refresh parties" onClick={loadParties}><RefreshCw size={15}/></button></div>
         {parties.length === 0 ? <p className="social-muted">No active parties yet. Start one!</p> : parties.map(item => <button className={party?.id === item.id ? "party-list-item selected" : "party-list-item"} key={item.id} onClick={() => joinParty(item.id)} disabled={busy}><span><strong>{item.name}</strong><small>Host: {item.host}</small></span><span className="party-member-count"><Users size={13}/>{item.members.length}</span></button>)}
