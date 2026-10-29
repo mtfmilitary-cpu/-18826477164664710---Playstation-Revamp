@@ -32,6 +32,12 @@ export default function QuickMenu() {
   const [achievementData, setAchievementData] = useState(null);
   const [achievementBusy, setAchievementBusy] = useState(false);
   const [achievementError, setAchievementError] = useState("");
+  const [allAchievements, setAllAchievements] = useState(null);
+  const [allAchievementsBusy, setAllAchievementsBusy] = useState(false);
+  const [consoleSettings, setConsoleSettings] = useState(() => {
+    try { return { accent: "#2877dc", font: "Inter", backdrop: "blue", ...JSON.parse(localStorage.getItem("console-settings") || "{}") }; }
+    catch { return { accent: "#2877dc", font: "Inter", backdrop: "blue" }; }
+  });
   const navigate = useNavigate();
   const active = items.find((item) => item.id === selected) || items[0];
 
@@ -46,6 +52,10 @@ export default function QuickMenu() {
       const response = await fetch("/api/v1/profile/me", { cache: "no-store" });
       const data = await response.json();
       setProfile(data);
+      if (data?.personaName) {
+        setUsername(data.personaName);
+        localStorage.setItem("console-username", data.personaName);
+      }
     } catch { setProfile(null); }
   }, []);
 
@@ -263,7 +273,7 @@ export default function QuickMenu() {
           </div>}
 
           {active.id === "party" && <div className="quick-menu-section">
-            <label className="quick-menu-field">Console name<input value={username} maxLength={32} onChange={(event) => { setUsername(event.target.value); localStorage.setItem("console-username", event.target.value); }}/></label>
+            <div className="quick-menu-steam-identity">{profile?.avatar ? <img src={profile.avatar} alt="" /> : <span className="quick-menu-friend-avatar">{(profile?.personaName || username).slice(0, 1)}</span>}<span><strong>{profile?.personaName || username}</strong><small>{profile?.connected ? "Steam account" : "Steam account not connected"}</small></span></div>
             {!party ? <>
               <label className="quick-menu-field">New party name<input value={partyName} maxLength={60} onChange={(event) => setPartyName(event.target.value)} placeholder="Optional"/></label>
               <button className="quick-menu-action" disabled={busy} onClick={createParty}><Plus size={14}/> Create party</button>
@@ -277,15 +287,25 @@ export default function QuickMenu() {
             <button className="quick-menu-action secondary" onClick={loadParties}><RefreshCw size={14}/> Refresh parties</button>
           </div>}
 
-          {active.id === "music" && <div className="quick-menu-section"><p className="quick-menu-muted">Music stays as it is in the current console build.</p></div>}
+          {active.id === "music" && <div className="quick-menu-section"><p className="quick-menu-muted">Music controls will appear here when a music provider or local library is configured. No music source is connected yet.</p></div>}
           {active.id === "achievements" && <div className="quick-menu-section">
-            {achievementData ? <>
+            {allAchievements ? <>
+              <button className="quick-menu-action secondary" onClick={() => setAllAchievements(null)}>← Back to achievement menu</button>
+              <div className="quick-menu-inline-stats"><strong>{allAchievements.unlocked} / {allAchievements.total} unlocked</strong><span>{allAchievements.gamesWithAchievements} games</span></div>
+              {allAchievements.games.map((game) => <div className="quick-menu-achievement-game" key={game.appId}><strong>{game.gameName}</strong><small>{game.unlocked} / {game.total} · {game.hours} hours</small>{game.achievements.map((achievement) => <div className="quick-menu-achievement" key={achievement.apiName}><Trophy size={14} className={achievement.achieved ? "unlocked" : ""}/><span><strong>{achievement.name}</strong><small>{achievement.description || (achievement.achieved ? "Unlocked" : "Not unlocked")}</small></span><i className={achievement.achieved ? "unlocked" : ""}/></div>)}</div>)}
+            </> : achievementData ? <>
               <button className="quick-menu-action secondary" onClick={() => { setAchievementData(null); setAchievementGame(null); setAchievementError(""); }}>← All recent games</button>
               <h3><Trophy size={15}/>{achievementData.gameName || achievementGame?.name || "Game achievements"}</h3>
               <div className="quick-menu-inline-stats"><strong>{achievementData.unlocked} / {achievementData.total} unlocked</strong><span>{achievementData.total ? Math.round(achievementData.unlocked / achievementData.total * 100) + "%" : "No achievements"}</span></div>
               <div className="quick-menu-achievement-list">{achievementData.achievements.map((achievement) => <div className="quick-menu-achievement" key={achievement.apiName}><Trophy size={15} className={achievement.achieved ? "unlocked" : ""}/><span><strong>{achievement.name}</strong><small>{achievement.description || (achievement.achieved ? "Unlocked" : "Not unlocked")}</small></span><i className={achievement.achieved ? "unlocked" : ""}/></div>)}</div>
             </> : <>
-              <h3><Trophy size={15}/> Choose a recently played game</h3>
+              <button className="quick-menu-action" disabled={allAchievementsBusy} onClick={async () => {
+                setAllAchievementsBusy(true); setAchievementError("");
+                try { const response = await fetch("/api/v1/profile/achievements/all", { cache: "no-store" }); const data = await response.json(); if (!response.ok) throw new Error(data.error || "The Steam achievement library could not be loaded."); setAllAchievements(data); }
+                catch (error) { setAchievementError(error.message || "Achievements could not be loaded."); }
+                finally { setAllAchievementsBusy(false); }
+              }}><Trophy size={14}/>{allAchievementsBusy ? "Loading all achievements…" : "Show all achievements"}</button>
+              <h3><Trophy size={15}/> Or choose a recently played game</h3>
               {profile?.recentGames?.length ? profile.recentGames.map((game) => <button className="quick-menu-game quick-menu-game-button" key={game.appId} disabled={achievementBusy} onClick={async () => {
                 setAchievementGame(game); setAchievementData(null); setAchievementBusy(true); setAchievementError("");
                 try {
@@ -302,6 +322,12 @@ export default function QuickMenu() {
             <p className="quick-menu-muted">Achievement details are fetched per game from Steam. Some games do not expose achievement data, and private profile settings may restrict access.</p>
           </div>}
 
+          {active.id === "customize" && <div className="quick-menu-section">
+            <label className="quick-menu-field">Accent color<input aria-label="Accent color" type="color" value={consoleSettings.accent} onChange={(event) => { const next = { ...consoleSettings, accent: event.target.value }; setConsoleSettings(next); localStorage.setItem("console-settings", JSON.stringify(next)); document.documentElement.style.setProperty("--console-accent", next.accent); window.dispatchEvent(new Event("console-settings-changed")); }}/></label>
+            <label className="quick-menu-field">Background<select value={consoleSettings.backdrop} onChange={(event) => { const next = { ...consoleSettings, backdrop: event.target.value }; setConsoleSettings(next); localStorage.setItem("console-settings", JSON.stringify(next)); document.body.dataset.consoleBackdrop = next.backdrop; window.dispatchEvent(new Event("console-settings-changed")); }}><option value="blue">Deep blue</option><option value="black">Black</option><option value="red">Dark red</option></select></label>
+            <label className="quick-menu-field">Interface font<select value={consoleSettings.font} onChange={(event) => { const next = { ...consoleSettings, font: event.target.value }; setConsoleSettings(next); localStorage.setItem("console-settings", JSON.stringify(next)); document.documentElement.style.setProperty("--font-ui", next.font === "System" ? "system-ui" : next.font); window.dispatchEvent(new Event("console-settings-changed")); }}><option>Inter</option><option>Arial</option><option>System</option><option>Oswald</option></select></label>
+            <button className="quick-menu-action secondary" onClick={() => { closeMenu(); if (window.location.pathname === "/overlay" && window.consoleBridge?.openMainRoute) window.consoleBridge.openMainRoute("/settings").catch(() => {}); else navigate("/settings"); }}>More Settings</button>
+          </div>}
           {active.id === "power" && <div className="quick-menu-power-actions">
             <button onClick={() => power("sleep")}><Moon size={15}/> Sleep</button>
             <button onClick={() => power("restart")}>Restart</button>
