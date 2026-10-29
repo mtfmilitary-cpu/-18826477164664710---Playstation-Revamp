@@ -112,7 +112,7 @@ router.get("/steam/return", async (req, res) => {
 });
 router.post("/voice-ticket", (req, res) => {
   const authorization = String(req.get("authorization") || "");
-  const token = authorization.match(/^Bearer\\s+(.+)$/i)?.[1] || "";
+  const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1] || "";
   const identity = verifySteamToken(token);
   if (!identity) return res.status(401).json({ error: "A verified Steam session is required." });
   for (const [ticket, entry] of voiceTickets) if (entry.expiresAt <= Date.now()) voiceTickets.delete(ticket);
