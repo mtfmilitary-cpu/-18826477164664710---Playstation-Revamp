@@ -87,9 +87,12 @@ export default function SteamStorePage() {
         <div>
           <p className="steam-eyebrow">STEAM STORE</p>
           <h1>Discover your next game</h1>
-          <p className="steam-subtitle">Browse Steam games here. Purchases always finish on the official Steam website.</p>
+          <p className="steam-subtitle">Discover games in the console, or open Steam's full official storefront for categories, recommendations, wishlists, community pages, and the complete catalog.</p>
         </div>
-        <ShoppingBag size={34} className="steam-heading-icon" />
+        <div className="steam-store-heading-actions">
+          <a className="steam-button steam-button-secondary steam-full-store-link" href="https://store.steampowered.com/" target="_blank" rel="noreferrer"><ExternalLink size={16}/> Open full Steam Store</a>
+          <ShoppingBag size={34} className="steam-heading-icon" />
+        </div>
       </header>
 
       <form className="steam-search steam-store-search" onSubmit={submitSearch}>
