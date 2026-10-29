@@ -123,14 +123,6 @@ export default function ConsoleSounds() {
       lastHoverRef.current = element;
       play("hover");
     };
-    const onKeyDown = (event) => {
-      if (event.repeat) return;
-      const element = interactiveFrom(event.target);
-      if (!element) return;
-      if (event.key === "Enter" || event.key === " ") play("select");
-      // Directional movement sound is emitted by the navigation focus manager,
-      // avoiding duplicate hover sounds when keyboard/controller focus changes.
-    };
     const onClick = (event) => {
       if (interactiveFrom(event.target)) play("select");
     };
@@ -158,13 +150,11 @@ export default function ConsoleSounds() {
     document.addEventListener("pointerover", onPointerOver, true);
     document.addEventListener("pointerout", onPointerOut, true);
     document.addEventListener("focusin", onFocus, true);
-    document.addEventListener("keydown", onKeyDown, true);
     document.addEventListener("click", onClick, true);
     return () => {
       document.removeEventListener("pointerover", onPointerOver, true);
       document.removeEventListener("pointerout", onPointerOut, true);
       document.removeEventListener("focusin", onFocus, true);
-      document.removeEventListener("keydown", onKeyDown, true);
       document.removeEventListener("click", onClick, true);
       listeners.forEach(([eventName, listener]) => window.removeEventListener(eventName, listener));
     };
