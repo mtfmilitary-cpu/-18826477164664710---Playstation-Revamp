@@ -66,6 +66,26 @@ async function createWindow() {
   mainWindow.on("close", () => {
     diagnostic("ELECTRON-WINDOW-0002", "Console window close requested.", null, "INFO");
   });
+
+  // Handle Alt+F4 only while fullscreen; never install a global low-level key hook.
+  mainWindow.webContents.on("before-input-event", (event, input) => {
+    if (input.type !== "keyDown" || input.key !== "F4" || !input.alt || !mainWindow?.isFullScreen()) return;
+    event.preventDefault();
+    dialog.showMessageBox(mainWindow, {
+      type: "question",
+      title: "Power Menu",
+      message: "Close the console?",
+      detail: "Your Steam games and other applications will keep running.",
+      buttons: ["Keep Console Open", "Close Console"],
+      defaultId: 0,
+      cancelId: 0,
+      noLink: true,
+    }).then(({ response }) => {
+      if (response === 1) app.quit();
+    }).catch((error) => {
+      diagnostic("ELECTRON-POWER-0001", "Could not display the fullscreen close confirmation.", error, "WARN");
+    });
+  });
   mainWindow.on("closed", () => {
     diagnostic("ELECTRON-WINDOW-0003", "Console window closed.", null, "INFO");
     mainWindow = null;
