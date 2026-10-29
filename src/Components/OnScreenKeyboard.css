@@ -1,0 +1,28 @@
+.onscreen-keyboard {
+  position: fixed; z-index: 100000; left: 50%; bottom: 22px; transform: translateX(-50%);
+  width: min(820px, calc(100vw - 28px)); padding: 16px 18px 12px; color: #f5f8ff;
+  background: linear-gradient(145deg, rgba(14,20,34,.98), rgba(7,11,21,.98));
+  border: 1px solid rgba(120,170,230,.35); border-radius: 18px;
+  box-shadow: 0 20px 70px rgba(0,0,0,.65), 0 0 32px rgba(0,112,209,.12);
+  backdrop-filter: blur(18px); font-family: var(--font-body, system-ui, sans-serif);
+}
+.onscreen-keyboard-header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:12px; }
+.onscreen-keyboard-header > div { display:grid; gap:3px; }
+.onscreen-keyboard-kicker { color:#76b9ff; font:700 10px/1.2 var(--font-ui,system-ui,sans-serif); letter-spacing:.14em; }
+.onscreen-keyboard-header strong { font-size:16px; }
+.onscreen-keyboard-header small { color:#9aaac2; font-size:11px; }
+.onscreen-keyboard-close { display:grid; place-items:center; width:34px; height:34px; border-radius:9px; color:#fff; background:#202b3d; border:1px solid #3a4961; }
+.onscreen-keyboard-rows { display:grid; gap:6px; }
+.onscreen-keyboard-row { display:flex; justify-content:center; gap:6px; }
+.osk-key { min-width:0; flex:1; height:39px; border:1px solid rgba(164,188,224,.22); border-radius:8px; background:linear-gradient(180deg,#263247,#192234); color:#f7faff; font:600 14px/1 var(--font-body,system-ui,sans-serif); display:flex; align-items:center; justify-content:center; gap:7px; padding:0 8px; }
+.osk-key:hover,.osk-key.selected { background:linear-gradient(180deg,#1b76ce,#124d91); border-color:#9dd4ff; box-shadow:0 0 0 2px rgba(79,166,255,.22); }
+.osk-key.osk-shift,.osk-key.osk-backspace,.osk-key.osk-clear,.osk-key.osk-done { flex:1.3; font-size:11px; }
+.osk-key.osk-space { flex:4; }
+.onscreen-keyboard footer { display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-top:11px; color:#9aabc3; font-size:10px; }
+@media (max-width:600px) {
+ .onscreen-keyboard { bottom:8px; padding:10px; border-radius:12px; }
+ .onscreen-keyboard-row { gap:3px; }
+ .osk-key { height:34px; border-radius:6px; padding:0 3px; font-size:12px; }
+ .osk-key.osk-shift,.osk-key.osk-backspace,.osk-key.osk-clear,.osk-key.osk-done { font-size:9px; }
+ .onscreen-keyboard footer { font-size:9px; }
+}
