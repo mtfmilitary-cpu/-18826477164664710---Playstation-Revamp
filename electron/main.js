@@ -350,6 +350,41 @@ ipcMain.handle("console:install-controller-stack", async (event) => {
     throw new Error(message);
   } finally { clearInterval(poller); }
 });
+function findDs4WindowsExecutable() {
+  const roots = [
+    path.join(process.env.LOCALAPPDATA || "", "DS4Windows"),
+    path.join(process.env.ProgramFiles || "C:\\Program Files", "DS4Windows"),
+  ];
+  for (const root of roots) {
+    if (!root || !fs.existsSync(root)) continue;
+    const pending = [root];
+    let visited = 0;
+    while (pending.length && visited < 2500) {
+      const current = pending.pop();
+      visited += 1;
+      let entries = [];
+      try { entries = fs.readdirSync(current, { withFileTypes: true }); } catch { continue; }
+      for (const entry of entries) {
+        const fullPath = path.join(current, entry.name);
+        if (entry.isFile() && entry.name.toLowerCase() === "ds4windows.exe") return fullPath;
+        if (entry.isDirectory()) pending.push(fullPath);
+      }
+    }
+  }
+  return null;
+}
+
+ipcMain.handle("console:launch-controller-emulator", async (event) => {
+  if (!isTrustedLocalUrl(event.senderFrame?.url || "")) throw new Error("Untrusted renderer.");
+  if (process.platform !== "win32") throw new Error("Controller emulator launch is available on Windows only.");
+  const executable = findDs4WindowsExecutable();
+  if (!executable) return { launched: false, message: "DS4Windows was not found. Install a supported build first." };
+  const error = await shell.openPath(executable);
+  if (error) throw new Error("Windows could not launch DS4Windows: " + error);
+  diagnostic("CONTROLLER-EMU-0001", "DS4Windows launch requested from controller settings.", null, "INFO");
+  return { launched: true, message: "DS4Windows launch requested." };
+});
+
 ipcMain.handle("console:open-controller-guide", async (event, guide) => {
   if (!isTrustedLocalUrl(event.senderFrame?.url || "")) return false;
   const urls = {
