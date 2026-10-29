@@ -28,7 +28,7 @@ For a hosted service, use HTTPS and configure the exact public HTTPS origin. Loo
 3. Renderer polls `GET /api/v1/auth/steam/poll?state=...`; the token is returned once and expires after one hour.
 4. Party REST calls send the JWT as a Bearer token. Before voice signaling, the client requests `POST /api/v1/auth/voice-ticket`; the backend returns a single-use ticket that expires in 60 seconds. The WebSocket URL carries only that short-lived ticket, not the one-hour JWT.
 
-**Current limits:** Party REST routes and the `/party-ws` / `/party-ws-secure` signaling paths now require a valid session token, and server-side party usernames are derived from the verified Steam ID. Open parties are still joinable by any authenticated user, and invitations still use display-name text rather than a verified Steam-friends relationship. Do not describe this as Steam-friends-only access.
+**Current limits:** Party REST routes require a valid session token; the `/party-ws` / `/party-ws-secure` signaling paths require a single-use 60-second ticket minted from that token. Server-side party usernames are derived from the verified Steam ID. Open parties are still joinable by any authenticated user, and invitations still use display-name text rather than a verified Steam-friends relationship. Do not describe this as Steam-friends-only access.
 
 ## Voice architecture
 Existing party audio is WebRTC peer-to-peer; a WebSocket signaling server alone does not relay audio. A real SFU requires mediasoup (or equivalent), UDP/NAT/TURN configuration, per-room routing, transport lifecycle management, and testing. Keep the existing P2P path until an SFU is deployed and clients are migrated. An SFU hides peers' public IPs from one another, but the relay sees their network connections.
