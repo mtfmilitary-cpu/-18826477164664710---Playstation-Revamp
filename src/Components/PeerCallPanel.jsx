@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Headphones, Mic, MicOff, PhoneOff, Send, Wifi, WifiOff, Volume2 } from "lucide-react";
 import "./PeerCallPanel.css";
 
-const SIGNAL_PATH = "/party-ws";
 function getSignalingUrl(token) {
   const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
   return scheme + "//" + window.location.host + "/party-ws-secure?token=" + encodeURIComponent(token);
