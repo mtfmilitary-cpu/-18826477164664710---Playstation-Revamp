@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - run: npm install
       - run: npm run build
       - run: node --check server.js && node --check electron/main.js && node --check electron/preload.cjs
 
@@ -35,7 +35,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - run: npm install
       - run: npm run lint
       - name: Validate package and native bridge source presence
         run: |
@@ -53,7 +53,7 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
-      - run: npm ci
+      - run: npm install
       - run: npm run build
       - name: Restore Microsoft GameInput SDK
         shell: pwsh
