@@ -8,7 +8,7 @@
  *  - 5-column responsive grid of game covers
  *  - Games from both HomeDashboard + StoreUI (6-7 from home, rest from store)
  */
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
@@ -333,6 +333,16 @@ const GameCoverCard = ({ game, index, onClick, featured = false }) => {
     return (
         <motion.div
             data-focusable
+            data-library-game
+            role="button"
+            tabIndex={0}
+            aria-label={`Open ${game.title}`}
+            onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onClick(game);
+                }
+            }}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: Math.min(index * 0.025, 0.5), duration: 0.35 }}
@@ -608,6 +618,102 @@ const GameLibrary = () => {
     }, [sortOption, searchQuery]);
 
     const installedCount = libraryGames.filter(g => g.installed).length;
+
+    // Consistent grid navigation for keyboard and gamepad. Horizontal holds
+    // start repeating only after three seconds; releasing immediately stops it.
+    useEffect(() => {
+        let frame = 0;
+        let heldKey = null;
+        let holdTimer = null;
+        let repeatTimer = null;
+        let gamepadDirection = null;
+        let gamepadHeldSince = 0;
+        let gamepadRepeatTimer = null;
+        let gamepadRepeating = false;
+        const cards = () => Array.from(document.querySelectorAll("[data-library-game]"));
+        const moveFocus = (direction) => {
+            const list = cards();
+            if (!list.length) return;
+            const current = list.indexOf(document.activeElement);
+            const index = current < 0 ? 0 : current;
+            const columns = window.innerWidth < 900 ? 3 : window.innerWidth < 1300 ? 4 : 6;
+            const delta = direction === "left" ? -1 : direction === "right" ? 1 : direction === "up" ? -columns : columns;
+            const next = Math.max(0, Math.min(list.length - 1, index + delta));
+            list[next]?.focus({ preventScroll: true });
+            list[next]?.scrollIntoView({ block: "nearest", inline: "nearest" });
+        };
+        const stopKeyboardRepeat = () => {
+            heldKey = null;
+            if (holdTimer) window.clearTimeout(holdTimer);
+            if (repeatTimer) window.clearInterval(repeatTimer);
+            holdTimer = null;
+            repeatTimer = null;
+        };
+        const onKeyDown = (event) => {
+            if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+            if (window.__onScreenKeyboardOpen || event.altKey || event.ctrlKey || event.metaKey) return;
+            if (["INPUT", "TEXTAREA", "SELECT"].includes(event.target?.tagName)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            const direction = event.key.replace("Arrow", "").toLowerCase();
+            if (event.repeat || heldKey === event.key) return;
+            stopKeyboardRepeat();
+            heldKey = event.key;
+            moveFocus(direction);
+            if (direction === "left" || direction === "right") {
+                holdTimer = window.setTimeout(() => {
+                    if (heldKey !== event.key) return;
+                    repeatTimer = window.setInterval(() => {
+                        if (heldKey === event.key) moveFocus(direction);
+                    }, 130);
+                }, 3000);
+            }
+        };
+        const onKeyUp = (event) => { if (event.key === heldKey) stopKeyboardRepeat(); };
+        const stopGamepadRepeat = () => {
+            if (gamepadRepeatTimer) window.clearInterval(gamepadRepeatTimer);
+            gamepadRepeatTimer = null;
+            gamepadRepeating = false;
+        };
+        const poll = (timestamp) => {
+            const pad = Array.from(navigator.getGamepads?.() || []).find(item => item?.connected);
+            let nextDirection = null;
+            if (pad && !window.__onScreenKeyboardOpen && !document.querySelector(".quick-menu-panel")) {
+                if (pad.buttons[14]?.pressed) nextDirection = "left";
+                else if (pad.buttons[15]?.pressed) nextDirection = "right";
+                else if (pad.buttons[12]?.pressed) nextDirection = "up";
+                else if (pad.buttons[13]?.pressed) nextDirection = "down";
+                else if ((pad.axes?.[0] ?? 0) < -0.78) nextDirection = "left";
+                else if ((pad.axes?.[0] ?? 0) > 0.78) nextDirection = "right";
+                else if ((pad.axes?.[1] ?? 0) < -0.78) nextDirection = "up";
+                else if ((pad.axes?.[1] ?? 0) > 0.78) nextDirection = "down";
+            }
+            if (nextDirection !== gamepadDirection) {
+                stopGamepadRepeat();
+                gamepadDirection = nextDirection;
+                gamepadHeldSince = nextDirection ? timestamp : 0;
+                if (nextDirection) moveFocus(nextDirection);
+            } else if (gamepadDirection && !gamepadRepeating && timestamp - gamepadHeldSince >= 3000) {
+                gamepadRepeating = true;
+                const repeatDirection = gamepadDirection;
+                gamepadRepeatTimer = window.setInterval(() => moveFocus(repeatDirection), 130);
+            }
+            if (!gamepadDirection) stopGamepadRepeat();
+            frame = window.requestAnimationFrame(poll);
+        };
+        window.addEventListener("keydown", onKeyDown, true);
+        window.addEventListener("keyup", onKeyUp, true);
+        window.addEventListener("blur", stopKeyboardRepeat);
+        frame = window.requestAnimationFrame(poll);
+        return () => {
+            stopKeyboardRepeat();
+            stopGamepadRepeat();
+            window.cancelAnimationFrame(frame);
+            window.removeEventListener("keydown", onKeyDown, true);
+            window.removeEventListener("keyup", onKeyUp, true);
+            window.removeEventListener("blur", stopKeyboardRepeat);
+        };
+    }, [sortedGames.length]);
 
     return (
         <div style={{
