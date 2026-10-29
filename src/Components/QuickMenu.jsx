@@ -22,6 +22,8 @@ export default function QuickMenu() {
   const [notice, setNotice] = useState("");
   const [profile, setProfile] = useState(null);
   const [devices, setDevices] = useState({ inputs: [], outputs: [] });
+  const [selectedInput, setSelectedInput] = useState("");
+  const [selectedOutput, setSelectedOutput] = useState("");
   const [parties, setParties] = useState([]);
   const [party, setParty] = useState(null);
   const [partyName, setPartyName] = useState("");
@@ -74,10 +76,11 @@ export default function QuickMenu() {
     }
     try {
       const all = await navigator.mediaDevices.enumerateDevices();
-      setDevices({
-        inputs: all.filter((device) => device.kind === "audioinput"),
-        outputs: all.filter((device) => device.kind === "audiooutput"),
-      });
+      const inputs = all.filter((device) => device.kind === "audioinput");
+      const outputs = all.filter((device) => device.kind === "audiooutput");
+      setDevices({ inputs, outputs });
+      setSelectedInput((current) => current || inputs[0]?.deviceId || "");
+      setSelectedOutput((current) => current || outputs[0]?.deviceId || "");
     } catch { setNotice("Windows did not allow audio-device enumeration."); }
   }, []);
 
@@ -251,12 +254,16 @@ export default function QuickMenu() {
           <p className="quick-menu-eyebrow">CONSOLE</p><h2>{active.label}</h2><p>{active.detail}</p>
 
           {active.id === "sound" && <div className="quick-menu-section">
-            <h3><Mic size={15}/> Microphones / Inputs</h3>
-            {devices.inputs.length ? devices.inputs.map((device, index) => <div className="quick-menu-device" key={device.deviceId || index}>{device.label || "Audio input " + (index + 1)}</div>) : <p className="quick-menu-muted">No input devices reported. Device names may appear after microphone permission is granted.</p>}
-            <h3><Volume2 size={15}/> Speakers / Outputs</h3>
-            {devices.outputs.length ? devices.outputs.map((device, index) => <div className="quick-menu-device" key={device.deviceId || index}>{device.label || "Audio output " + (index + 1)}</div>) : <p className="quick-menu-muted">No output devices reported by the browser.</p>}
+            <h3><Mic size={15}/> Microphone input</h3>
+            {devices.inputs.length ? <label className="quick-menu-field">Use for party voice<select value={selectedInput} onChange={(event) => { setSelectedInput(event.target.value); window.dispatchEvent(new CustomEvent("console:audio-input-selected", { detail: { deviceId: event.target.value } })); }}>
+              {devices.inputs.map((device, index) => <option key={device.deviceId || index} value={device.deviceId}>{device.label || "Audio input " + (index + 1)}</option>)}
+            </select></label> : <p className="quick-menu-muted">No input devices reported. Device names may appear after microphone permission is granted.</p>}
+            <h3><Volume2 size={15}/> Party voice output</h3>
+            {devices.outputs.length ? <label className="quick-menu-field">Play party audio through<select value={selectedOutput} onChange={(event) => { setSelectedOutput(event.target.value); window.dispatchEvent(new CustomEvent("console:audio-output-selected", { detail: { deviceId: event.target.value } })); }}>
+              {devices.outputs.map((device, index) => <option key={device.deviceId || index} value={device.deviceId}>{device.label || "Audio output " + (index + 1)}</option>)}
+            </select></label> : <p className="quick-menu-muted">No output devices reported by the browser.</p>}
             <button className="quick-menu-action" onClick={loadDevices}><RefreshCw size={14}/> Refresh devices</button>
-            <p className="quick-menu-muted">This lists detected devices. Changing Windows' default output or master volume is not wired up yet.</p>
+            <p className="quick-menu-muted">These selections apply to party voice audio. Windows system-wide default output and master volume still need native Windows audio integration.</p>
           </div>}
 
           {active.id === "friends" && <div className="quick-menu-section">
