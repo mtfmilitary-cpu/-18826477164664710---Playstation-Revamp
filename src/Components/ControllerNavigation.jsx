@@ -148,6 +148,10 @@ export default function ControllerNavigationProvider({ children }) {
             // Scroll the element into view
             el.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'nearest' });
 
+            // Controller focus movement uses the same hover sound as mouse navigation.
+            // Inputs/selects already emit a native focus event, so avoid playing twice there.
+            if (!el.matches('input, textarea, select')) window.dispatchEvent(new Event('console:sound-hover'));
+
             // Tell VirtualCursor where we are so the dot follows
             const r = el.getBoundingClientRect();
             window.dispatchEvent(new CustomEvent('controller-focus-move', {
@@ -296,6 +300,17 @@ export default function ControllerNavigationProvider({ children }) {
         let nextRepeatAt = 0;
         const previousButtons = new Map();
         let initializedPad = false;
+        const resetGamepadState = () => {
+            previousButtons.clear();
+            initializedPad = false;
+            heldDirection = null;
+            nextRepeatAt = 0;
+            lastDirectionAt = 0;
+        };
+        const onGamepadConnected = () => resetGamepadState();
+        const onGamepadDisconnected = () => resetGamepadState();
+        window.addEventListener('gamepadconnected', onGamepadConnected);
+        window.addEventListener('gamepaddisconnected', onGamepadDisconnected);
         const poll = (timestamp) => {
             if (document.hasFocus()) {
                 const pads = navigator.getGamepads?.() || [];
@@ -351,7 +366,11 @@ export default function ControllerNavigationProvider({ children }) {
             frameId = requestAnimationFrame(poll);
         };
         frameId = requestAnimationFrame(poll);
-        return () => cancelAnimationFrame(frameId);
+        return () => {
+            cancelAnimationFrame(frameId);
+            window.removeEventListener('gamepadconnected', onGamepadConnected);
+            window.removeEventListener('gamepaddisconnected', onGamepadDisconnected);
+        };
     }, [processDirection, navigate, location.pathname, findNearest, setFocus]);
 
     // ── Keyboard fallback (testing without a controller) ────────────
