@@ -43,6 +43,18 @@ export default function QuickMenu() {
   const navigate = useNavigate();
   const active = items.find((item) => item.id === selected) || items[0];
 
+  function handleMenuKeyDown(event) {
+    const tag = event.target?.tagName;
+    if (["INPUT", "TEXTAREA", "SELECT"].includes(tag)) return;
+    if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) return;
+    event.preventDefault();
+    const currentIndex = Math.max(0, items.findIndex((item) => item.id === selectedRef.current));
+    const delta = event.key === "ArrowUp" || event.key === "ArrowLeft" ? -1 : 1;
+    const nextIndex = (currentIndex + delta + items.length) % items.length;
+    setSelected(items[nextIndex].id);
+    requestAnimationFrame(() => document.querySelectorAll(".quick-menu-item")[nextIndex]?.focus({ preventScroll: true }));
+  }
+
   const closeMenu = useCallback(() => {
     setOpen(false);
     window.dispatchEvent(new Event("console:sound-quick-close"));
@@ -237,7 +249,7 @@ export default function QuickMenu() {
 
   if (!open) return null;
   return <div className="quick-menu-scrim" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeMenu(); }}>
-    <section className="quick-menu-panel" role="dialog" aria-modal="true" aria-label="Quick Menu">
+    <section className="quick-menu-panel" role="dialog" aria-modal="true" aria-label="Quick Menu" onKeyDown={handleMenuKeyDown}>
       <header className="quick-menu-header"><span>QUICK MENU</span><button aria-label="Close Quick Menu" onClick={closeMenu}><X size={18}/></button></header>
       <div className="quick-menu-content">
         <nav className="quick-menu-list" aria-label="Quick Menu options">
