@@ -43,16 +43,73 @@ export default function QuickMenu() {
   const navigate = useNavigate();
   const active = items.find((item) => item.id === selected) || items[0];
 
-  function handleMenuKeyDown(event) {
-    const tag = event.target?.tagName;
-    if (["INPUT", "TEXTAREA", "SELECT"].includes(tag)) return;
-    if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) return;
-    event.preventDefault();
-    const currentIndex = Math.max(0, items.findIndex((item) => item.id === selectedRef.current));
-    const delta = event.key === "ArrowUp" || event.key === "ArrowLeft" ? -1 : 1;
+  const moveMenuDirection = useCallback((direction) => {
+    const panel = document.querySelector(".quick-menu-panel");
+    if (!panel) return;
+    const navItems = Array.from(panel.querySelectorAll(".quick-menu-item"));
+    const detail = panel.querySelector(".quick-menu-detail");
+    const controls = detail ? Array.from(detail.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])')).filter(el => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && !el.closest('[aria-hidden="true"]');
+    }) : [];
+    const current = document.activeElement;
+    const currentNav = navItems.indexOf(current);
+    const currentControl = controls.indexOf(current);
+    const delta = direction === "left" || direction === "up" ? -1 : 1;
+
+    if ((direction === "left" || direction === "right") && currentControl >= 0) {
+      if (current instanceof HTMLSelectElement) {
+        const next = Math.max(0, Math.min(current.options.length - 1, current.selectedIndex + delta));
+        if (next !== current.selectedIndex) {
+          current.selectedIndex = next;
+          current.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        return;
+      }
+      if (current instanceof HTMLInputElement && current.type === "range") {
+        const step = Number(current.step) || 1;
+        const min = Number(current.min) || 0;
+        const max = Number(current.max) || 100;
+        const value = Math.max(min, Math.min(max, Number(current.value) + delta * step));
+        current.value = String(value);
+        current.dispatchEvent(new Event("input", { bubbles: true }));
+        current.dispatchEvent(new Event("change", { bubbles: true }));
+        return;
+      }
+      const nextControl = controls[currentControl + delta];
+      if (nextControl) { nextControl.focus({ preventScroll: true }); return; }
+      if (direction === "left" && navItems.length) {
+        navItems[Math.max(0, items.findIndex(item => item.id === selectedRef.current))]?.focus({ preventScroll: true });
+        return;
+      }
+    }
+
+    if (direction === "right" && currentNav >= 0 && controls.length) {
+      controls[0].focus({ preventScroll: true });
+      return;
+    }
+    if (direction === "left" && currentControl >= 0 && navItems.length) {
+      navItems[Math.max(0, items.findIndex(item => item.id === selectedRef.current))]?.focus({ preventScroll: true });
+      return;
+    }
+
+    if (currentControl >= 0 && (direction === "up" || direction === "down")) {
+      const nextControl = controls[currentControl + delta];
+      if (nextControl) nextControl.focus({ preventScroll: true });
+      return;
+    }
+    const currentIndex = currentNav >= 0 ? currentNav : Math.max(0, items.findIndex(item => item.id === selectedRef.current));
     const nextIndex = (currentIndex + delta + items.length) % items.length;
     setSelected(items[nextIndex].id);
-    requestAnimationFrame(() => document.querySelectorAll(".quick-menu-item")[nextIndex]?.focus({ preventScroll: true }));
+    requestAnimationFrame(() => navItems[nextIndex]?.focus({ preventScroll: true }));
+  }, []);
+
+  function handleMenuKeyDown(event) {
+    if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) return;
+    if (["INPUT", "TEXTAREA"].includes(event.target?.tagName) && event.target?.type !== "range") return;
+    event.preventDefault();
+    event.stopPropagation();
+    moveMenuDirection(event.key.replace("Arrow", "").toLowerCase());
   }
 
   const closeMenu = useCallback(() => {
@@ -146,11 +203,7 @@ export default function QuickMenu() {
         else if (rising(15) || (pad.axes[0] > 0.65 && timestamp - lastMoveAt > 180)) direction = "right";
         if (direction && timestamp - lastMoveAt > 120) {
           lastMoveAt = timestamp;
-          const currentIndex = Math.max(0, items.findIndex((item) => item.id === selectedRef.current));
-          const delta = direction === "up" || direction === "left" ? -1 : 1;
-          const nextIndex = (currentIndex + delta + items.length) % items.length;
-          setSelected(items[nextIndex].id);
-          document.querySelectorAll(".quick-menu-item")[nextIndex]?.focus({ preventScroll: true });
+          moveMenuDirection(direction);
         }
         if (rising(0)) {
           const currentIndex = items.findIndex((item) => item.id === selectedRef.current);
@@ -162,7 +215,7 @@ export default function QuickMenu() {
     };
     frameId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frameId);
-  }, [open, closeMenu]);
+  }, [open, closeMenu, moveMenuDirection]);
   useEffect(() => {
     if (!open) return;
     const firstItem = document.querySelector(".quick-menu-item");
@@ -343,7 +396,7 @@ export default function QuickMenu() {
 
           {active.id === "customize" && <div className="quick-menu-section">
             <label className="quick-menu-field">Accent color<input aria-label="Accent color" type="color" value={consoleSettings.accent} onChange={(event) => { const next = { ...consoleSettings, accent: event.target.value }; setConsoleSettings(next); localStorage.setItem("console-settings", JSON.stringify(next)); document.documentElement.style.setProperty("--console-accent", next.accent); window.dispatchEvent(new Event("console-settings-changed")); }}/></label>
-            <label className="quick-menu-field">Background<select value={consoleSettings.backdrop} onChange={(event) => { const next = { ...consoleSettings, backdrop: event.target.value }; setConsoleSettings(next); localStorage.setItem("console-settings", JSON.stringify(next)); document.body.dataset.consoleBackdrop = next.backdrop; window.dispatchEvent(new Event("console-settings-changed")); }}><option value="blue">Deep blue</option><option value="black">Black</option><option value="red">Dark red</option></select></label>
+            <label className="quick-menu-field">Background<select value={consoleSettings.backdrop} onChange={(event) => { const next = { ...consoleSettings, backdrop: event.target.value }; setConsoleSettings(next); localStorage.setItem("console-settings", JSON.stringify(next)); document.body.dataset.consoleBackdrop = next.backdrop; window.dispatchEvent(new Event("console-settings-changed")); }}><option value="blue">Deep blue</option><option value="black">Black</option><option value="red">Dark red</option><option value="slate">Slate</option><option value="midnight">Midnight</option><option value="emerald">Emerald</option><option value="violet">Violet</option><option value="crimson">Crimson</option><option value="amber">Amber</option><option value="arctic">Arctic</option><option value="rose">Rose</option><option value="teal">Teal</option><option value="graphite">Graphite</option><option value="sunset">Sunset</option></select></label>
             <label className="quick-menu-field">Interface font<select value={consoleSettings.font} onChange={(event) => { const next = { ...consoleSettings, font: event.target.value }; setConsoleSettings(next); localStorage.setItem("console-settings", JSON.stringify(next)); document.documentElement.style.setProperty("--font-ui", next.font === "System" ? "system-ui" : next.font); window.dispatchEvent(new Event("console-settings-changed")); }}><option>Inter</option><option>Arial</option><option>System</option><option>Oswald</option></select></label>
             <button className="quick-menu-action secondary" onClick={() => { closeMenu(); if (window.location.pathname === "/overlay" && window.consoleBridge?.openMainRoute) window.consoleBridge.openMainRoute("/settings").catch(() => {}); else navigate("/settings"); }}>More Settings</button>
           </div>}
