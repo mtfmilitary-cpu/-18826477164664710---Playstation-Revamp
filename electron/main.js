@@ -7,6 +7,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { startServer } from "../server.js";
 import { diagnostic, diagnosticLogPath } from "../server/diagnostics.js";
+import { checkAndStageDeltaUpdate, applyStagedDeltaUpdate } from "./updater.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let mainWindow;
@@ -365,6 +366,31 @@ ipcMain.handle("console:open-bluetooth-settings", async (event) => {
   if (process.platform !== "win32") throw new Error("Windows Bluetooth settings are only available on Windows.");
   await shell.openExternal("ms-settings:bluetooth");
   return true;
+});
+
+ipcMain.handle("console:check-for-updates", async (event) => {
+  if (!isTrustedLocalUrl(event.senderFrame?.url || "")) throw new Error("Untrusted renderer.");
+  if (process.env.ELECTRON_RENDERER_URL) throw new Error("Use a production build to test asset updates.");
+  const packageData = JSON.parse(fs.readFileSync(path.join(projectRoot, "package.json"), "utf8"));
+  const result = await checkAndStageDeltaUpdate({
+    app,
+    manifestUrl: process.env.CONSOLE_UPDATE_MANIFEST_URL,
+    publicKeyB64: process.env.CONSOLE_UPDATE_PUBLIC_KEY_B64,
+    currentVersion: packageData.version,
+  });
+  if (!result.updateAvailable) return { ...result, restarted: false };
+  const confirmation = await dialog.showMessageBox(mainWindow, {
+    type: "question",
+    title: "Console Update",
+    message: "Install verified console assets for version " + result.version + "?",
+    detail: result.filesStaged + " changed asset file(s) passed SHA-256 and signed-manifest verification. The console will restart.",
+    buttons: ["Later", "Install and Restart"], defaultId: 0, cancelId: 0, noLink: true,
+  });
+  if (confirmation.response !== 1) return { ...result, restarted: false, cancelled: true };
+  await applyStagedDeltaUpdate({ app });
+  app.relaunch();
+  app.quit();
+  return { ...result, restarted: true };
 });
 
 ipcMain.handle("console:open-steam-auth", async (event, value) => {
