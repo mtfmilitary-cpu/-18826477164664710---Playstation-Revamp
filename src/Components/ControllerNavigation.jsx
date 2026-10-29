@@ -216,6 +216,15 @@ export default function ControllerNavigationProvider({ children }) {
         }
         if (!action) return;
 
+        // Route controller navigation to the on-screen keyboard while a text field is active.
+        if (window.__onScreenKeyboardOpen) {
+            const directions = { DPAD_UP: 'up', DPAD_DOWN: 'down', DPAD_LEFT: 'left', DPAD_RIGHT: 'right' };
+            if (directions[action]) window.dispatchEvent(new CustomEvent('console:osk-action', { detail: { action: directions[action] } }));
+            else if (['CROSS', 'SELECT', 'CONFIRM'].includes(action)) window.dispatchEvent(new CustomEvent('console:osk-action', { detail: { action: 'select' } }));
+            else if (['CIRCLE', 'BACK', 'CANCEL'].includes(action)) window.dispatchEvent(new CustomEvent('console:osk-action', { detail: { action: 'close' } }));
+            return;
+        }
+
         // On /showcase, let all buttons pass through to the 3D controller
         if (location.pathname === '/showcase') return;
 
@@ -329,8 +338,8 @@ export default function ControllerNavigationProvider({ children }) {
                     }
                     const axisX = Number(pad.axes?.[0] || 0);
                     const axisY = Number(pad.axes?.[1] || 0);
-                    const direction = rising(12) ? 'up' : rising(13) ? 'down' : rising(14) ? 'left' : rising(15) ? 'right' :
-                        axisY < -0.62 ? 'up' : axisY > 0.62 ? 'down' : axisX < -0.62 ? 'left' : axisX > 0.62 ? 'right' : null;
+                    const direction = window.__onScreenKeyboardOpen ? null : (rising(12) ? 'up' : rising(13) ? 'down' : rising(14) ? 'left' : rising(15) ? 'right' :
+                        axisY < -0.78 ? 'up' : axisY > 0.78 ? 'down' : axisX < -0.78 ? 'left' : axisX > 0.78 ? 'right' : null);
                     if (direction !== heldDirection) {
                         heldDirection = direction;
                         nextRepeatAt = timestamp + 330;
@@ -342,22 +351,43 @@ export default function ControllerNavigationProvider({ children }) {
                         processDirection(direction);
                         nextRepeatAt = timestamp + 115;
                     }
+                    // Some Windows/browser mappings expose the physical PS/Guide button at index 16.
+                    // Other drivers omit it entirely; no virtual button is fabricated.
+                    const guideDown = Boolean(pad.buttons[16]?.pressed);
+                    const homeButton = homeButtonRef.current;
+                    if (rising(16) && !homeButton.pressedAt) {
+                        homeButton.pressedAt = Date.now();
+                        homeButton.longPressed = false;
+                        homeButton.timer = setTimeout(() => {
+                            homeButton.longPressed = true;
+                            window.consoleBridge?.toggleQuickMenu?.().catch(() => {});
+                        }, 5000);
+                    }
+                    if (!guideDown && homeButton.pressedAt) {
+                        if (homeButton.timer) clearTimeout(homeButton.timer);
+                        const shortPress = !homeButton.longPressed && Date.now() - homeButton.pressedAt < 5000;
+                        homeButton.pressedAt = 0;
+                        homeButton.timer = null;
+                        if (shortPress) window.consoleBridge?.openMainRoute?.('/home').catch(() => {});
+                    }
                     // DualShock 4 standard mapping: Cross=0, Circle=1, Options=9.
-                    // The Guide button is driver-dependent and is not reliably exposed by Chromium.
                     if (rising(4)) { window.scrollBy({ top: -window.innerHeight * 0.6, behavior: 'smooth' }); }
                     if (rising(5)) { window.scrollBy({ top: window.innerHeight * 0.6, behavior: 'smooth' }); }
                     // Share opens Home; Options opens the Quick Menu. The PS/Guide button
                     // is intentionally not assumed to be available through Chromium.
-                    if (rising(8)) window.consoleBridge?.openMainRoute?.('/home').catch(() => {});
-                    if (rising(9)) window.consoleBridge?.toggleQuickMenu?.().catch(() => {});
-                    if (rising(0)) {
+                    if (!window.__onScreenKeyboardOpen && rising(8)) window.consoleBridge?.openMainRoute?.('/home').catch(() => {});
+                    if (!window.__onScreenKeyboardOpen && rising(9)) window.consoleBridge?.toggleQuickMenu?.().catch(() => {});
+                    if (window.__onScreenKeyboardOpen) {
+                        if (rising(0)) window.dispatchEvent(new CustomEvent('console:osk-action', { detail: { action: 'select' } }));
+                        if (rising(1)) window.dispatchEvent(new CustomEvent('console:osk-action', { detail: { action: 'close' } }));
+                    } else if (rising(0)) {
                         if (focusedRef.current && isActiveRef.current) focusedRef.current.click();
                         else {
                             const first = findNearest(null, "down");
                             if (first) setFocus(first);
                         }
                     }
-                    if (rising(1)) {
+                    if (!window.__onScreenKeyboardOpen && rising(1)) {
                         if (location.pathname === '/overlay') window.consoleBridge?.hideQuickMenu?.().catch(() => {});
                         else if (location.pathname !== '/home') navigate(-1);
                     }
