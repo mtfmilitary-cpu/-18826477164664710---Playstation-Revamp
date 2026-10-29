@@ -630,6 +630,7 @@ const GameLibrary = () => {
         let gamepadHeldSince = 0;
         let gamepadRepeatTimer = null;
         let gamepadRepeating = false;
+        let previousSelect = false;
         const cards = () => Array.from(document.querySelectorAll("[data-library-game]"));
         const moveFocus = (direction) => {
             const list = cards();
@@ -679,6 +680,11 @@ const GameLibrary = () => {
             const pad = Array.from(navigator.getGamepads?.() || []).find(item => item?.connected);
             let nextDirection = null;
             if (pad && !window.__onScreenKeyboardOpen && !document.querySelector(".quick-menu-panel")) {
+                const selectPressed = Boolean(pad.buttons[0]?.pressed);
+                if (selectPressed && !previousSelect && document.activeElement?.matches?.("[data-library-game]")) {
+                    document.activeElement.click();
+                }
+                previousSelect = selectPressed;
                 if (pad.buttons[14]?.pressed) nextDirection = "left";
                 else if (pad.buttons[15]?.pressed) nextDirection = "right";
                 else if (pad.buttons[12]?.pressed) nextDirection = "up";
