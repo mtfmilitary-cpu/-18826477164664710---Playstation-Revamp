@@ -95,6 +95,7 @@ const HomeDashboard = () => {
     const [steamDetails, setSteamDetails] = useState(null);
     const [detailsBusy, setDetailsBusy] = useState(false);
     const [detailsMessage, setDetailsMessage] = useState("");
+    const [launchNotice, setLaunchNotice] = useState("");
     const [steamProfile, setSteamProfile] = useState(null);
     const [steamGames, setSteamGames] = useState([]);
     const [steamGamesLoading, setSteamGamesLoading] = useState(true);
@@ -203,8 +204,10 @@ const HomeDashboard = () => {
     function launchSelectedGame() {
         const appId = steamDetails?.appId || resolvedGame?.appId;
         if (!appId) { setDetailsMessage("No verified Steam App ID is available. Try searching the Steam Store."); return; }
+        window.dispatchEvent(new Event("console:sound-game-launch"));
+        setLaunchNotice("Launch request sent to Steam. Your game showcase stays open.");
+        setDetailsOpen(false);
         window.location.href = `steam://run/${encodeURIComponent(appId)}`;
-        setDetailsMessage("Sent the launch request to Steam.");
     }
 
     // Current active game (from the full list)
@@ -468,6 +471,12 @@ const HomeDashboard = () => {
                 </div>
             </div>
         </div>
+            {launchNotice && (
+                <div role="status" aria-live="polite" onAnimationEnd={() => {}} style={{ position: "fixed", right: 28, bottom: 26, zIndex: 200001, maxWidth: "min(420px, calc(100vw - 36px))", padding: "13px 17px", color: "#eff7ff", background: "rgba(10,20,34,.96)", border: "1px solid rgba(130,190,245,.42)", borderRadius: 5, boxShadow: "0 12px 38px rgba(0,0,0,.42)", fontSize: 13 }}>
+                    {launchNotice}
+                    <button type="button" aria-label="Dismiss launch message" onClick={() => setLaunchNotice("")} style={{ marginLeft: 14, background: "transparent", border: 0, color: "#bcdcff", cursor: "pointer" }}>×</button>
+                </div>
+            )}
             {detailsOpen && (
                 <div aria-label="Selected game details" style={{ position: "fixed", right: 28, top: 94, zIndex: 200000, width: "min(480px, calc(100vw - 36px))", maxHeight: "calc(100vh - 120px)", overflow: "auto", borderRadius: 10, padding: 20, color: "#fff", background: "rgba(9,15,25,.94)", backdropFilter: "blur(22px)", border: "1px solid rgba(255,255,255,.2)", boxShadow: "0 18px 55px rgba(0,0,0,.45)" }}>
                     <section>
