@@ -25,7 +25,8 @@ The helper build does not silently install a driver or a Windows runtime. On PCs
 Each stdout line is one JSON object:
 
 ```json
-{"type":"gamepad-state","source":"gameinput","buttons":1234,"leftTrigger":0.0,"rightTrigger":0.0,"leftX":0.0,"leftY":0.0,"rightX":0.0,"rightY":0.0}
+{"type":"gamepad-state","source":"gameinput","connected":true,"buttons":1234,"leftTrigger":0.0,"rightTrigger":0.0,"leftX":0.0,"leftY":0.0,"rightX":0.0,"rightY":0.0}
+{"type":"device-status","source":"gameinput","connected":false}
 ```
 
 Electron accepts only `gamepad-state` events with source `gameinput`, clamps numeric fields, rejects malformed/oversized lines, and stops the helper when Electron exits. The Settings input monitor prefers native samples when received and keeps Chromium's Gamepad API as a fallback.
@@ -44,7 +45,7 @@ Do not convert the `joy.cpl` number directly into a GameInput bit. The current p
 
 ## Current limitations
 
-- The helper is source-integrated with Electron, but it must be compiled on Windows before it can run.
-- It currently reports standard gamepad state only. Device identity/status events and the PS/Guide button path are not complete.
+- The helper is source-integrated with Electron, including disconnect-event forwarding, but it must be compiled on Windows before it can run.
+- It reports standard gamepad state and a disconnect event. Stable device identity, explicit connect notifications, and the PS/Guide button path are not complete.
 - The native helper does not create a virtual controller. Virtual output/emulation is a separate compatibility layer.
 - The native source and Electron runtime still need validation on a real Windows PC with DualShock 4 and DualSense over USB and Bluetooth. Do not claim system-wide controller support before those tests pass.
