@@ -127,10 +127,9 @@ export default function ConsoleSounds() {
       if (event.repeat) return;
       const element = interactiveFrom(event.target);
       if (!element) return;
-      if (["Enter", " ", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
-        if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) play("hover");
-        else if (event.key === "Enter" || event.key === " ") play("select");
-      }
+      if (event.key === "Enter" || event.key === " ") play("select");
+      // Directional movement sound is emitted by the navigation focus manager,
+      // avoiding duplicate hover sounds when keyboard/controller focus changes.
     };
     const onClick = (event) => {
       if (interactiveFrom(event.target)) play("select");
