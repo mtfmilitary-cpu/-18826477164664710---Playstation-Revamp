@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   validation-pass-1-build:
@@ -23,6 +23,17 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm install
+      - name: Commit regenerated lockfile when validating a branch push
+        if: github.event_name == 'push' && github.ref == 'refs/heads/electron-steam-console'
+        shell: bash
+        run: |
+          if ! git diff --quiet -- package-lock.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package-lock.json
+            git commit -m "chore: sync npm lockfile [skip ci]"
+            git push origin HEAD:electron-steam-console
+          fi
       - run: npm run build
       - run: node --check server.js && node --check electron/main.js && node --check electron/preload.cjs
 
