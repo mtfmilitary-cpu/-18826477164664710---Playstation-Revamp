@@ -9,3 +9,26 @@
 
 /* PS4-style Party interface: clean horizontal system panels and vivid blue focus. */
 .party-page{background:linear-gradient(180deg,#101d30 0%,#07101d 55%,#050a12 100%)}.party-page .social-heading{padding-bottom:18px;border-bottom:1px solid rgba(157,190,228,.16)}.party-page .social-eyebrow{color:#8cc5ff;letter-spacing:1.5px}.party-page .party-sidebar,.party-page .party-room{border-radius:3px;background:rgba(14,27,44,.86);border-color:rgba(132,169,209,.2)}.party-page .party-list-item{border-radius:3px}.party-page .party-list-item.selected,.party-page .party-list-item:focus-visible{background:rgba(36,104,174,.3);border-color:#68b4ff;outline:1px solid rgba(104,180,255,.55)}.party-page .social-primary,.party-page .social-secondary{border-radius:3px}.party-page input:focus-visible{outline:2px solid #8cc7ff;outline-offset:2px}.party-page .party-room-header,.party-page .party-members,.party-page .party-invite-form{border-color:rgba(157,190,228,.16)}
+
+
+/* Party chat: persistent voice-room layout, Discord-like message rhythm, PS4 blue focus */
+.party-page{padding-top:104px;background:radial-gradient(ellipse at 85% 0%,rgba(39,112,200,.2),transparent 43%),linear-gradient(150deg,#101b2c 0%,#080e18 60%,#050910 100%)}
+.party-page .social-heading{max-width:1580px;margin:0 auto 24px}
+.party-page .party-layout{max-width:1580px;margin:0 auto;gap:14px;grid-template-columns:minmax(250px,310px) minmax(0,1fr)}
+.party-page .party-sidebar,.party-page .party-room{border-radius:4px;background:rgba(11,20,33,.93);border-color:rgba(137,174,219,.2);box-shadow:0 10px 30px rgba(0,0,0,.17)}
+.party-page .party-sidebar{padding:15px}
+.party-page .party-room{min-height:650px}
+.party-page .party-room-header{background:rgba(19,33,52,.76);padding:20px 23px}
+.party-page .party-room-header h2{font-size:24px;letter-spacing:-.03em}
+.party-page .party-members{background:rgba(9,17,29,.55)}
+.party-page .party-list-item{border-radius:4px;padding:13px 11px}
+.party-page .party-list-item.selected,.party-page .party-list-item:focus-visible{background:rgba(36,103,172,.26);border-color:#4d8bce;outline:none}
+.party-page .party-list-item:focus-visible,.party-page .social-primary:focus-visible,.party-page .social-secondary:focus-visible,.party-page input:focus-visible{outline:2px solid #a2d1ff;outline-offset:2px}
+.party-page .party-server-chat{margin:14px 16px 0;border-radius:4px;background:rgba(7,13,22,.78);border-color:rgba(133,169,211,.16)}
+.party-page .party-server-chat>header{font-size:13px}
+.party-page .party-server-message-list{max-height:280px;min-height:120px}
+.party-page .peer-chat-message{border-radius:3px 12px 12px 12px}
+.party-page .peer-chat-message.own{border-radius:12px 3px 12px 12px}
+.party-page .party-send-form input,.party-page .party-invite-form input,.party-page .party-username input,.party-page .party-create input{border-radius:4px}
+.party-page .social-primary,.party-page .social-secondary{border-radius:4px}
+@media(max-width:900px){.party-page .party-layout{grid-template-columns:minmax(0,1fr)}.party-page .party-room{min-height:480px}}
