@@ -308,7 +308,7 @@ ipcMain.handle("console:gameinput-start", async (event) => {
       return;
     }
     let newline;
-    while ((newline = gameInputLineBuffer.indexOf("\\n")) >= 0) {
+    while ((newline = gameInputLineBuffer.indexOf("\n")) >= 0) {
       const line = gameInputLineBuffer.slice(0, newline).trim();
       gameInputLineBuffer = gameInputLineBuffer.slice(newline + 1);
       if (!line || line.length > 8192) continue;
@@ -336,7 +336,7 @@ ipcMain.handle("console:gameinput-start", async (event) => {
   });
   child.stderr.setEncoding("utf8");
   child.stderr.on("data", chunk => {
-    const safe = String(chunk || "").replace(/https?:\\/\\/[^\\s]+/g, "[URL REDACTED]").slice(0, 400);
+    const safe = String(chunk || "").replace(/https?:\/\/[^\s]+/g, "[URL REDACTED]").slice(0, 400);
     if (safe.trim()) diagnostic("GAMEINPUT-0005", "Native GameInput helper reported a diagnostic.", null, "WARN", { detail: safe.trim() });
   });
   child.on("error", error => {
