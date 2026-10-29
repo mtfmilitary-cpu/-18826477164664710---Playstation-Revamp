@@ -22,3 +22,30 @@
 
 /* PS4-inspired Settings layout: restrained rows, cool blue focus, and simple panels. */
 .console-settings-page{background:linear-gradient(180deg,#101b2c 0%,#07101d 58%,#050a12 100%);padding-top:104px}.console-settings-section{border-radius:3px;background:rgba(15,28,45,.76);border:1px solid rgba(128,164,202,.18);box-shadow:0 8px 28px rgba(0,0,0,.16)}.console-settings-section-heading{color:#83baff}.console-settings-row{border-bottom-color:rgba(158,190,225,.13)}.console-settings-row:hover{background:rgba(54,112,177,.1)}.console-settings-row select,.console-settings-row input:not([type=color]){border-radius:2px}.console-settings-button{border-radius:3px}.console-settings-button:focus-visible,.console-settings-row select:focus-visible{outline:2px solid #8cc7ff;outline-offset:3px}
+
+
+/* Unified PS4/PS5 console Settings overhaul */
+.console-settings-page{padding:104px clamp(20px,4vw,64px) 52px;background:radial-gradient(ellipse at 72% 0%,rgba(44,113,205,.23),transparent 48%),linear-gradient(145deg,#111c2d 0%,#080e19 55%,#05080e 100%);font-family:var(--font-ui,Inter,system-ui,sans-serif)}
+.console-settings-page>h1{font-size:clamp(36px,4.3vw,54px);font-weight:650;letter-spacing:-.045em;margin:7px 0 6px}
+.console-settings-subtitle{max-width:760px;margin-bottom:30px}
+.console-settings-section{max-width:1180px;margin:0 0 16px;padding:22px 26px;background:linear-gradient(110deg,rgba(19,34,54,.94),rgba(10,18,30,.94));border:1px solid rgba(151,187,230,.17);border-radius:5px;box-shadow:0 12px 34px rgba(0,0,0,.15);transition:border-color .18s ease,background .18s ease}
+.console-settings-section:focus-within{border-color:rgba(104,170,245,.42)}
+.console-settings-section-heading{padding-bottom:17px;margin-bottom:1px;border-bottom:1px solid rgba(155,189,228,.15)}
+.console-settings-section-heading>svg{flex:none;width:22px;height:22px}
+.console-settings-section-heading h2{font-size:19px;letter-spacing:-.02em}
+.console-settings-row{min-height:56px;padding:15px 12px;margin:0 -12px;border-bottom:1px solid rgba(155,189,228,.1);transition:background .16s ease}
+.console-settings-row:hover{background:rgba(65,126,196,.12)}
+.console-settings-row strong{font-size:14px;font-weight:650}
+.console-settings-row p{max-width:690px;font-size:12px}
+.console-settings-row select,.console-settings-row input:not([type=color]){min-height:38px;border-radius:3px;background:#101e30;border:1px solid #344a66;color:#f4f8ff}
+.console-settings-button{border-radius:3px;min-height:39px;padding:10px 15px;transition:background .15s ease,border-color .15s ease,transform .15s ease}
+.console-settings-button:active{transform:scale(.98)}
+.console-settings-button.secondary{background:#15263b;border-color:#2e4562}
+.console-settings-button.secondary:hover{background:#203a59;border-color:#527caf}
+.console-settings-button:focus-visible,.console-settings-row select:focus-visible,.console-settings-row input:focus-visible,.console-settings-toggle input:focus-visible{outline:2px solid #a2d1ff;outline-offset:3px}
+.console-settings-power-grid{gap:12px}
+.console-settings-message{max-width:780px}
+.console-controller-install{border-radius:4px;background:linear-gradient(115deg,rgba(25,54,83,.86),rgba(10,21,35,.96))}
+.controller-setup-toast{border-radius:5px;backdrop-filter:blur(22px)}
+@media(min-width:1100px){.console-settings-page{background-image:linear-gradient(90deg,transparent 0%,rgba(4,9,16,.12) 100%),radial-gradient(ellipse at 72% 0%,rgba(44,113,205,.23),transparent 48%),linear-gradient(145deg,#111c2d 0%,#080e19 55%,#05080e 100%)}}
+@media(max-width:640px){.console-settings-section{padding:16px}.console-settings-row{gap:12px;flex-wrap:wrap}.console-settings-row>div{flex:1 1 100%}.console-settings-row select{max-width:100%}}
