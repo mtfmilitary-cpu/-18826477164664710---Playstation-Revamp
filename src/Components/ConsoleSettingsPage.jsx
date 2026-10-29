@@ -61,6 +61,8 @@ export default function ConsoleSettingsPage() {
   const [controllerToast, setControllerToast] = useState(null);
   const [installingController, setInstallingController] = useState(false);
   const [livePad, setLivePad] = useState(null);
+  const [nativeInput, setNativeInput] = useState(null);
+  const [nativeInputMessage, setNativeInputMessage] = useState("");
   const [powerMessage, setPowerMessage] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
   const [profileName, setProfileName] = useState("");
@@ -112,6 +114,35 @@ export default function ConsoleSettingsPage() {
     raf = requestAnimationFrame(poll);
     return () => cancelAnimationFrame(raf);
   }, []);
+
+  useEffect(() => {
+    const unsubscribeInput = window.consoleBridge?.onGameInputEvent?.(event => {
+      if (!event || event.source !== "gameinput" || event.type !== "gamepad-state") return;
+      setNativeInput(event);
+      setNativeInputMessage("Receiving native GameInput readings.");
+    });
+    const unsubscribeStopped = window.consoleBridge?.onGameInputStopped?.(() => {
+      setNativeInput(null);
+      setNativeInputMessage("Native GameInput helper stopped.");
+    });
+    return () => {
+      if (typeof unsubscribeInput === "function") unsubscribeInput();
+      if (typeof unsubscribeStopped === "function") unsubscribeStopped();
+    };
+  }, []);
+
+  async function startNativeGameInput() {
+    if (!window.consoleBridge?.startGameInputBridge) {
+      setNativeInputMessage("Native input requires the Electron desktop build on Windows.");
+      return;
+    }
+    try {
+      const result = await window.consoleBridge.startGameInputBridge();
+      setNativeInputMessage(result?.message || (result?.started ? "Native GameInput helper started." : "Native GameInput helper is not available."));
+    } catch (error) {
+      setNativeInputMessage(error?.message || "Native GameInput helper could not start.");
+    }
+  }
 
   async function launchControllerEmulator() {
     if (!window.consoleBridge?.launchControllerEmulator) {
@@ -211,10 +242,10 @@ export default function ConsoleSettingsPage() {
         <div className="ps-note"><AlertTriangle size={16}/> The console currently reads live input through Chromium's Gamepad API. Microsoft GameInput is the intended native input layer, but it still needs a compiled native bridge before this app can claim to use it. The emulator handles virtual-controller compatibility; it does not guarantee a perfect PS4/PS5 experience in every game.</div>
       </>;
       case "controller": return <>
-        <div className="ps-controller-top"><div><span className="ps-eyebrow">INPUT MONITOR</span><h3>{livePad?.id || "No controller detected"}</h3><p>{livePad ? `${livePad.buttons} buttons · ${livePad.axes.length} axes · ${livePad.mapping === "standard" ? "standard mapping" : "device-specific mapping"}` : "Connect a controller, then move a stick or press a button."}</p></div><span className={livePad ? "ps-status connected" : "ps-status"}>{livePad ? "Live" : "Waiting"}</span></div>
-        <div className="ps-controller-actions"><button className="ps-primary-button" onClick={launchControllerEmulator}><Gamepad2 size={16}/> Launch DS4Windows</button><button className="ps-secondary-button" onClick={()=>window.consoleBridge?.openBluetoothSettings?.().catch(()=>{})}><Bluetooth size={16}/> Pair / reconnect controller</button><button className="ps-secondary-button" onClick={()=>window.consoleBridge?.getControllerStackStatus?.().then(setControllerStack).catch(()=>{})}><RefreshCw size={16}/> Refresh connection status</button></div>
+        <div className="ps-controller-top"><div><span className="ps-eyebrow">INPUT MONITOR</span><h3>{nativeInput ? "Native GameInput" : livePad?.id || "No controller detected"}</h3><p>{nativeInput ? `Native reading · buttons bitmask ${nativeInput.buttons} · ${Math.round((nativeInput.receivedAt || 0) ? Date.now() - nativeInput.receivedAt : 0)} ms since sample` : livePad ? `${livePad.buttons} buttons · ${livePad.axes.length} axes · ${livePad.mapping === "standard" ? "standard mapping" : "device-specific mapping"}` : "Connect a controller, then move a stick or press a button."}</p>{nativeInputMessage && <p className="ps-note">{nativeInputMessage}</p>}</div><span className={nativeInput || livePad ? "ps-status connected" : "ps-status"}>{nativeInput ? "Native" : livePad ? "Browser" : "Waiting"}</span></div>
+        <div className="ps-controller-actions"><button className="ps-primary-button" onClick={startNativeGameInput}><Gamepad2 size={16}/> Start native GameInput</button><button className="ps-secondary-button" onClick={launchControllerEmulator}><Gamepad2 size={16}/> Launch DS4Windows</button><button className="ps-secondary-button" onClick={()=>window.consoleBridge?.openBluetoothSettings?.().catch(()=>{})}><Bluetooth size={16}/> Pair / reconnect controller</button><button className="ps-secondary-button" onClick={()=>window.consoleBridge?.getControllerStackStatus?.().then(setControllerStack).catch(()=>{})}><RefreshCw size={16}/> Refresh connection status</button></div>
         <div className="ps-stick-grid">
-          {[{name:"Left stick",x:livePad?.axes?.[0]||0,y:livePad?.axes?.[1]||0},{name:"Right stick",x:livePad?.axes?.[2]||0,y:livePad?.axes?.[3]||0}].map(stick=><div className="ps-stick-card" key={stick.name}><div className="ps-stick-visual"><div className="ps-stick-ring"><span style={{left:`${50+stick.x*42}%`,top:`${50+stick.y*42}%`}}/></div></div><div className="ps-stick-meta"><strong>{stick.name}</strong><span>X {stick.x.toFixed(2)} · Y {stick.y.toFixed(2)}</span></div></div>)}
+          {[{name:"Left stick",x:nativeInput?.leftX ?? livePad?.axes?.[0] ?? 0,y:nativeInput?.leftY ?? livePad?.axes?.[1] ?? 0},{name:"Right stick",x:nativeInput?.rightX ?? livePad?.axes?.[2] ?? 0,y:nativeInput?.rightY ?? livePad?.axes?.[3] ?? 0}].map(stick=><div className="ps-stick-card" key={stick.name}><div className="ps-stick-visual"><div className="ps-stick-ring"><span style={{left:`${50+stick.x*42}%`,top:`${50+stick.y*42}%`}}/></div></div><div className="ps-stick-meta"><strong>{stick.name}</strong><span>X {stick.x.toFixed(2)} · Y {stick.y.toFixed(2)}</span></div></div>)}
         </div>
         <SettingRow title="Left stick deadzone" description="Ignore small input around the center. This value is saved to this app's profile."><Range label="Left stick deadzone" value={settings.controllerDeadzoneLeft} max={35} step={1} onChange={v=>update("controllerDeadzoneLeft",v)}/></SettingRow>
         <SettingRow title="Right stick deadzone" description="Adjust the center deadzone independently."><Range label="Right stick deadzone" value={settings.controllerDeadzoneRight} max={35} step={1} onChange={v=>update("controllerDeadzoneRight",v)}/></SettingRow>
